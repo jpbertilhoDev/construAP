@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Edit2 } from 'lucide-react'
 import type { Task } from '@/services/tasks'
+import { usePermissions } from '@/features/auth/usePermissions'
 import { useEffect } from 'react'
 
 const statusColorMap: Record<string, "default" | "secondary" | "destructive" | "outline" | "warning" | "success"> = {
@@ -52,6 +53,7 @@ const taskSchema = z.object({
 type TaskFormValues = z.infer<typeof taskSchema>
 
 export function TasksTab({ obraId }: { obraId: string }) {
+    const { hasPermission } = usePermissions()
     const { data: tasks = [], isLoading, isError } = useTasks(obraId)
     const createMutation = useCreateTask()
     const updateMutation = useUpdateTask(obraId)
@@ -93,11 +95,13 @@ export function TasksTab({ obraId }: { obraId: string }) {
                     <CardDescription>Acompanhe ações pendentes, patologias ou trabalhos a corrigir.</CardDescription>
                 </div>
                 <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
-                    <DialogTrigger asChild>
-                        <Button size="sm" onClick={() => setEditingTask(null)}>
-                            <Plus className="h-4 w-4" /> Nova Tarefa
-                        </Button>
-                    </DialogTrigger>
+                    {hasPermission('obras.manage') && (
+                        <DialogTrigger asChild>
+                            <Button size="sm" onClick={() => setEditingTask(null)}>
+                                <Plus className="h-4 w-4" /> Nova Tarefa
+                            </Button>
+                        </DialogTrigger>
+                    )}
                     <DialogContent className="sm:max-w-[450px]">
                         <DialogHeader>
                             <DialogTitle>{editingTask ? 'Editar Tarefa' : 'Adicionar Tarefa'}</DialogTitle>
@@ -136,7 +140,7 @@ export function TasksTab({ obraId }: { obraId: string }) {
                                     <TableHead className="w-[120px]">Data Limite</TableHead>
                                     <TableHead className="w-[100px]">Prioridade</TableHead>
                                     <TableHead className="w-[120px]">Estado</TableHead>
-                                    <TableHead className="w-[60px]"></TableHead>
+                                    {hasPermission('obras.manage') && <TableHead className="w-[60px]"></TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -164,24 +168,26 @@ export function TasksTab({ obraId }: { obraId: string }) {
                                         <TableCell>
                                             <Badge variant={statusColorMap[task.status] || 'default'}>{task.status}</Badge>
                                         </TableCell>
-                                        <TableCell>
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    variant="ghost" size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                    onClick={() => handleEdit(task)}
-                                                >
-                                                    <Edit2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost" size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                    onClick={() => setDeleteId(task.id)}
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
+                                        {hasPermission('obras.manage') && (
+                                            <TableCell>
+                                                <div className="flex justify-end gap-1">
+                                                    <Button
+                                                        variant="ghost" size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                        onClick={() => handleEdit(task)}
+                                                    >
+                                                        <Edit2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost" size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                        onClick={() => setDeleteId(task.id)}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 ))}
                             </TableBody>

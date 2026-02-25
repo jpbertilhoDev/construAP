@@ -10,11 +10,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useSuppliers, useCreateSupplier, useUpdateSupplier } from './hooks/useCompras'
 import { useForm } from 'react-hook-form'
 import type { Supplier } from '@/services/materiais'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 const estadoVariant: Record<string, any> = { Ativo: 'success', Inativo: 'secondary' }
 const tipoLabel: Record<string, string> = { material: 'Material', servico: 'Serviço', ambos: 'Material & Serviço' }
 
 export function FornecedoresListPage() {
+    const { hasPermission } = usePermissions()
     const [search, setSearch] = useState('')
     const [tipoFilter, setTipoFilter] = useState('todos')
     const [isOpen, setIsOpen] = useState(false)
@@ -74,9 +76,11 @@ export function FornecedoresListPage() {
                     </SelectContent>
                 </Select>
                 <Dialog open={isOpen} onOpenChange={o => { setIsOpen(o); if (!o) { setEditItem(null); form.reset() } }}>
-                    <DialogTrigger asChild>
-                        <Button size="sm" className="gap-1.5 ml-auto"><Plus className="h-4 w-4" /> Novo Fornecedor</Button>
-                    </DialogTrigger>
+                    {hasPermission('compras.manage') && (
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="gap-1.5 ml-auto"><Plus className="h-4 w-4" /> Novo Fornecedor</Button>
+                        </DialogTrigger>
+                    )}
                     <DialogContent className="sm:max-w-[480px]">
                         <DialogHeader><DialogTitle>{editItem ? 'Editar Fornecedor' : 'Novo Fornecedor'}</DialogTitle></DialogHeader>
                         <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="space-y-3 mt-2">
@@ -142,7 +146,7 @@ export function FornecedoresListPage() {
                                 <TableHead>Tipo</TableHead>
                                 <TableHead>Contacto</TableHead>
                                 <TableHead>Estado</TableHead>
-                                <TableHead className="w-10"></TableHead>
+                                {hasPermission('compras.manage') && <TableHead className="w-10"></TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -155,22 +159,24 @@ export function FornecedoresListPage() {
                                     <TableCell><Badge variant="outline">{tipoLabel[s.tipo]}</Badge></TableCell>
                                     <TableCell className="text-sm">{s.email ?? s.phone ?? '—'}</TableCell>
                                     <TableCell><Badge variant={estadoVariant[s.estado] ?? 'default'}>{s.estado}</Badge></TableCell>
-                                    <TableCell>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-3.5 w-3.5" /></Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => openEdit(s)}>Editar</DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    className="text-destructive"
-                                                    onClick={() => void updateMutation.mutateAsync({ id: s.id, estado: s.estado === 'Ativo' ? 'Inativo' : 'Ativo' })}
-                                                >
-                                                    {s.estado === 'Ativo' ? 'Inativar' : 'Ativar'}
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
+                                    {hasPermission('compras.manage') && (
+                                        <TableCell>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-3.5 w-3.5" /></Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => openEdit(s)}>Editar</DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        className="text-destructive"
+                                                        onClick={() => void updateMutation.mutateAsync({ id: s.id, estado: s.estado === 'Ativo' ? 'Inativo' : 'Ativo' })}
+                                                    >
+                                                        {s.estado === 'Ativo' ? 'Inativar' : 'Ativar'}
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))}
                         </TableBody>

@@ -30,6 +30,7 @@ import { usePayables, useCreatePayable, useUpdatePayableStatus, useDeletePayable
 import { useSuppliers } from '@/features/obras/hooks/useSuppliers'
 import { useObras } from '@/features/obras/hooks/useObras'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 const statusMap: Record<string, "default" | "secondary" | "destructive" | "outline" | "warning" | "success"> = {
     'Pendente': 'warning',
@@ -51,6 +52,7 @@ const payableSchema = z.object({
 type PayableFormValues = z.infer<typeof payableSchema>
 
 export function PayablesTab() {
+    const { hasPermission } = usePermissions()
     const { data: payables = [], isLoading, isError } = usePayables()
     const deleteMutation = useDeletePayable()
     const { mutateAsync: updateStatus } = useUpdatePayableStatus()
@@ -99,11 +101,13 @@ export function PayablesTab() {
                     />
                 </div>
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                    <DialogTrigger asChild>
-                        <Button size="sm" className="gap-1 shrink-0">
-                            <Plus className="h-4 w-4" /> Nova Conta a Pagar
-                        </Button>
-                    </DialogTrigger>
+                    {hasPermission('finance.manage') && (
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="gap-1 shrink-0">
+                                <Plus className="h-4 w-4" /> Nova Conta a Pagar
+                            </Button>
+                        </DialogTrigger>
+                    )}
                     <DialogContent className="max-w-md">
                         <DialogHeader>
                             <DialogTitle>Registar Conta a Pagar</DialogTitle>
@@ -129,7 +133,7 @@ export function PayablesTab() {
                             <TableHead>Obra</TableHead>
                             <TableHead>Estado</TableHead>
                             <TableHead className="text-right w-[140px]">Valor (€)</TableHead>
-                            <TableHead className="w-[100px]"></TableHead>
+                            {hasPermission('finance.manage') && <TableHead className="w-[100px]"></TableHead>}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -150,42 +154,44 @@ export function PayablesTab() {
                                         <Badge variant={statusMap[ap.status] || 'default'}>{ap.status}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right font-medium">{formatCurrency(ap.amount)}</TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center justify-end gap-1">
-                                            {ap.status !== 'Pago' && (
+                                    {hasPermission('finance.manage') && (
+                                        <TableCell>
+                                            <div className="flex items-center justify-end gap-1">
+                                                {ap.status !== 'Pago' && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        title="Marcar como Pago"
+                                                        onClick={() => void updateStatus({ id: ap.id, status: 'Pago' })}
+                                                    >
+                                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                                    </Button>
+                                                )}
+                                                {ap.status === 'Pago' && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        title="Marcar Pendente"
+                                                        onClick={() => void updateStatus({ id: ap.id, status: 'Pendente' })}
+                                                    >
+                                                        <XCircle className="h-4 w-4 text-amber-600" />
+                                                    </Button>
+                                                )}
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    title="Marcar como Pago"
-                                                    onClick={() => void updateStatus({ id: ap.id, status: 'Pago' })}
+                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                    title="Eliminar conta"
+                                                    onClick={() => {
+                                                        setDeleteError(null)
+                                                        setDeleteId(ap.id)
+                                                    }}
                                                 >
-                                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                                    <Trash2 className="h-4 w-4" />
                                                 </Button>
-                                            )}
-                                            {ap.status === 'Pago' && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    title="Marcar Pendente"
-                                                    onClick={() => void updateStatus({ id: ap.id, status: 'Pendente' })}
-                                                >
-                                                    <XCircle className="h-4 w-4 text-amber-600" />
-                                                </Button>
-                                            )}
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                title="Eliminar conta"
-                                                onClick={() => {
-                                                    setDeleteError(null)
-                                                    setDeleteId(ap.id)
-                                                }}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
+                                            </div>
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))
                         )}

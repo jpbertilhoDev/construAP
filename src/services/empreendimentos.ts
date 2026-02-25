@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { getProfile } from '@/lib/getProfile'
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -49,12 +50,7 @@ export type EmpreendimentoInsert = {
 
 // ─── Service Functions ───────────────────────────────────────
 
-async function getProfile() {
-    const { data } = await supabase.from('profiles').select('id, tenant_id').single()
-    const profile = data as { id: string; tenant_id: string } | null
-    if (!profile) throw new Error('Perfil não encontrado')
-    return profile
-}
+// getProfile imported from @/lib/getProfile
 
 export async function fetchEmpreendimentos(includeArchived = false): Promise<Empreendimento[]> {
     const profile = await getProfile()

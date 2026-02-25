@@ -8,8 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useTimesheets, useApproveTimesheet, useRejectTimesheet } from './hooks/useEmployees'
 import { formatDate } from '@/lib/utils'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 export function AprovacoesPage() {
+    const { hasPermission } = usePermissions()
     const { data: pendentes = [], isLoading } = useTimesheets({ estado: 'Submetido' })
     const approveMutation = useApproveTimesheet()
     const rejectMutation = useRejectTimesheet()
@@ -48,7 +50,7 @@ export function AprovacoesPage() {
                                     <TableHead>Data</TableHead>
                                     <TableHead>Horas / Presença</TableHead>
                                     <TableHead>Observação</TableHead>
-                                    <TableHead className="text-right">Ações</TableHead>
+                                    {hasPermission('rh.manage') && <TableHead className="text-right">Ações</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -63,27 +65,29 @@ export function AprovacoesPage() {
                                         <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
                                             {ts.observacao ?? '—'}
                                         </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center justify-end gap-1.5">
-                                                <Button
-                                                    size="sm"
-                                                    className="gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700"
-                                                    disabled={approveMutation.isPending}
-                                                    onClick={() => void approveMutation.mutateAsync(ts.id)}
-                                                >
-                                                    {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                                                    Aprovar
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="gap-1.5 h-8 text-destructive border-destructive hover:bg-destructive/10"
-                                                    onClick={() => setRejectId(ts.id)}
-                                                >
-                                                    <XCircle className="h-3.5 w-3.5" /> Rejeitar
-                                                </Button>
-                                            </div>
-                                        </TableCell>
+                                        {hasPermission('rh.manage') && (
+                                            <TableCell>
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <Button
+                                                        size="sm"
+                                                        className="gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700"
+                                                        disabled={approveMutation.isPending}
+                                                        onClick={() => void approveMutation.mutateAsync(ts.id)}
+                                                    >
+                                                        {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                                        Aprovar
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="gap-1.5 h-8 text-destructive border-destructive hover:bg-destructive/10"
+                                                        onClick={() => setRejectId(ts.id)}
+                                                    >
+                                                        <XCircle className="h-3.5 w-3.5" /> Rejeitar
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 ))}
                             </TableBody>

@@ -1,11 +1,6 @@
 // @ts-nocheck
 import { supabase } from '@/lib/supabase'
-
-async function getProfile() {
-    const { data: profile } = await supabase.from('profiles').select('id, tenant_id').single()
-    if (!profile) throw new Error('Perfil não encontrado')
-    return profile
-}
+import { getProfile } from '@/lib/getProfile'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 

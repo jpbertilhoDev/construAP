@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { useObras } from '@/features/obras/hooks/useObras'
 import { formatDate } from '@/lib/utils'
 import type { ObraType } from '@/types/database.types'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 
 const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'outline' | 'destructive'> = {
@@ -29,6 +30,7 @@ const typeIcon: Record<ObraType, string> = {
 }
 
 export function ObrasListPage() {
+    const { hasPermission } = usePermissions()
     const [search, setSearch] = useState('')
     const { data: obras = [], isLoading, isError, refetch } = useObras()
 
@@ -50,12 +52,14 @@ export function ObrasListPage() {
                         {isLoading ? '...' : `${obras.length} obra${obras.length !== 1 ? 's' : ''} no total`}
                     </p>
                 </div>
-                <Button asChild>
-                    <Link to="/obras/new">
-                        <Plus className="h-4 w-4" />
-                        Nova Obra
-                    </Link>
-                </Button>
+                {hasPermission('obras.manage') && (
+                    <Button asChild>
+                        <Link to="/obras/new">
+                            <Plus className="h-4 w-4" />
+                            Nova Obra
+                        </Link>
+                    </Button>
+                )}
             </div>
 
             {/* Search */}
@@ -117,7 +121,7 @@ export function ObrasListPage() {
                                     ? `Nenhuma obra corresponde a "${search}".`
                                     : 'Crie a sua primeira obra para começar a controlar orçamentos e custos.'}
                             </p>
-                            {!search && (
+                            {!search && hasPermission('obras.manage') && (
                                 <Button className="mt-6" asChild>
                                     <Link to="/obras/new">
                                         <Plus className="h-4 w-4" />

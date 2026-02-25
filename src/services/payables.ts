@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { getProfile } from '@/lib/getProfile'
 import type { PayableStatus } from '@/types/database.types'
 
 export type Payable = {
@@ -31,9 +32,7 @@ export type PayableInsert = {
 }
 
 export async function fetchPayables(): Promise<Payable[]> {
-    const { data: profileData } = await supabase.from('profiles').select('tenant_id').single()
-    const profile = profileData as { tenant_id: string } | null
-    if (!profile) throw new Error('Perfil não encontrado')
+    const profile = await getProfile()
 
     const { data, error } = await supabase
         .from('accounts_payable')
@@ -52,9 +51,7 @@ export async function fetchPayables(): Promise<Payable[]> {
 }
 
 export async function createPayable(payload: PayableInsert): Promise<Payable> {
-    const { data: profileData } = await supabase.from('profiles').select('id, tenant_id').single()
-    const profile = profileData as { id: string; tenant_id: string } | null
-    if (!profile) throw new Error('Perfil não encontrado')
+    const profile = await getProfile()
 
     const { data, error } = await supabase
         .from('accounts_payable')

@@ -13,9 +13,15 @@ export function useProfile() {
     return useQuery<Profile | null>({
         queryKey: ['profile'],
         queryFn: async () => {
+            const {
+                data: { user },
+            } = await supabase.auth.getUser()
+            if (!user) return null
+
             const { data, error } = await supabase
                 .from('profiles')
                 .select('id, tenant_id, name, avatar_url, phone')
+                .eq('id', user.id)
                 .single()
 
             if (error) {

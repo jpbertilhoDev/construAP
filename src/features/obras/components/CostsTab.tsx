@@ -26,6 +26,7 @@ import { Edit2 } from 'lucide-react'
 import type { Cost } from '@/services/costs'
 import { useBudget } from '../hooks/useBudgets'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 const statusMap: Record<string, "default" | "secondary" | "destructive" | "outline" | "warning" | "success"> = {
     'Rascunho': 'secondary',
@@ -49,6 +50,7 @@ const costSchema = z.object({
 type CostFormValues = z.infer<typeof costSchema>
 
 export function CostsTab({ obraId }: { obraId: string }) {
+    const { hasPermission } = usePermissions()
     const { data: costs = [], isLoading, isError } = useCosts(obraId)
     const createCostMutation = useCreateCost()
     const updateCostMutation = useUpdateCost(obraId)
@@ -92,11 +94,13 @@ export function CostsTab({ obraId }: { obraId: string }) {
                     <CardDescription>Registe despesas, faturas e outros custos associados à obra.</CardDescription>
                 </div>
                 <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
-                    <DialogTrigger asChild>
-                        <Button size="sm" onClick={() => setEditingCost(null)}>
-                            <Plus className="h-4 w-4" /> Lançar Custo
-                        </Button>
-                    </DialogTrigger>
+                    {hasPermission('obras.manage') && (
+                        <DialogTrigger asChild>
+                            <Button size="sm" onClick={() => setEditingCost(null)}>
+                                <Plus className="h-4 w-4" /> Lançar Custo
+                            </Button>
+                        </DialogTrigger>
+                    )}
                     <DialogContent className="sm:max-w-[425px]">
                         <DialogHeader>
                             <DialogTitle>{editingCost ? 'Editar Custo' : 'Lançar Custo Real'}</DialogTitle>
@@ -137,7 +141,7 @@ export function CostsTab({ obraId }: { obraId: string }) {
                                     <TableHead>Estado</TableHead>
                                     <TableHead>Anexo</TableHead>
                                     <TableHead className="text-right w-[140px]">Valor (€)</TableHead>
-                                    <TableHead className="w-[60px]"></TableHead>
+                                    {hasPermission('obras.manage') && <TableHead className="w-[60px]"></TableHead>}
                                 </TableRow>
 
                             </TableHeader>
@@ -161,26 +165,28 @@ export function CostsTab({ obraId }: { obraId: string }) {
                                         </TableCell>
                                         <TableCell className="text-right font-medium">{formatCurrency(cost.amount)}</TableCell>
 
-                                        <TableCell>
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                    onClick={() => handleEdit(cost)}
-                                                >
-                                                    <Edit2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                    onClick={() => setDeleteId(cost.id)}
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
+                                        {hasPermission('obras.manage') && (
+                                            <TableCell>
+                                                <div className="flex justify-end gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                        onClick={() => handleEdit(cost)}
+                                                    >
+                                                        <Edit2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                        onClick={() => setDeleteId(cost.id)}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 ))}
                             </TableBody>

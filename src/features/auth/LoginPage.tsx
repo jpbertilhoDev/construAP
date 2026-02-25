@@ -21,6 +21,7 @@ export function LoginPage() {
     const navigate = useNavigate()
     const location = useLocation()
     const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/'
+    const successMessage = (location.state as { successMessage?: string })?.successMessage ?? null
     const [error, setError] = useState<string | null>(null)
 
     const {
@@ -88,6 +89,12 @@ export function LoginPage() {
                                 </div>
                             )}
 
+                            {successMessage && (
+                                <div className="text-sm text-green-400 bg-green-500/10 rounded-md px-3 py-2 border border-green-500/20">
+                                    {successMessage}
+                                </div>
+                            )}
+
                             <Button type="submit" className="w-full" disabled={isSubmitting}>
                                 {isSubmitting
                                     ? <span className="flex items-center gap-2"><span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />A entrar...</span>
@@ -95,8 +102,7 @@ export function LoginPage() {
                             </Button>
 
                             <p className="text-center text-sm text-slate-400">
-                                Sem conta?{' '}
-                                <Link to="/register" className="text-blue-400 hover:underline">Criar empresa</Link>
+                                <Link to="/forgot-password" className="text-blue-400 hover:underline">Esqueceu a palavra-passe?</Link>
                             </p>
                         </form>
                     </CardContent>

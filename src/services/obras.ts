@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { getProfile } from '@/lib/getProfile'
 
 export type Obra = {
     id: string
@@ -101,15 +102,7 @@ export async function fetchAllObraFinancials(): Promise<ObraFinancials[]> {
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export async function createObra(payload: ObraInsert): Promise<Obra> {
-    // Fetch current user's profile for tenant_id + created_by
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, tenant_id')
-        .single()
-
-    if (profileError || !profile) {
-        throw new Error('Perfil de utilizador não encontrado. Faça login novamente.')
-    }
+    const profile = await getProfile()
 
     const { data, error } = await supabase
         .from('obras')

@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom'
 import { useEmployees, useCreateEmployee, useUpdateEmployee, useEmployeeRoles, useUploadAvatar, useCreateEmployeeRole, useDeleteEmployeeRole } from './hooks/useEmployees'
 import { useForm } from 'react-hook-form'
 import { formatDate } from '@/lib/utils'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 type EmployeeForm = {
     nome: string
@@ -31,6 +32,7 @@ const estadoVariant: Record<string, 'success' | 'secondary' | 'warning'> = {
 }
 
 export function FuncionariosListPage() {
+    const { hasPermission } = usePermissions()
     const [search, setSearch] = useState('')
     const [estadoFilter, setEstadoFilter] = useState('Ativo')
     const [isOpen, setIsOpen] = useState(false)
@@ -92,9 +94,11 @@ export function FuncionariosListPage() {
                     </SelectContent>
                 </Select>
                 <Dialog open={rolesOpen} onOpenChange={setRolesOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="gap-1.5 ml-auto"><Settings2 className="h-4 w-4" /> Categorias</Button>
-                    </DialogTrigger>
+                    {hasPermission('rh.manage') && (
+                        <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="gap-1.5 ml-auto"><Settings2 className="h-4 w-4" /> Categorias</Button>
+                        </DialogTrigger>
+                    )}
                     <DialogContent className="sm:max-w-[420px]">
                         <DialogHeader><DialogTitle>Categorias Profissionais</DialogTitle></DialogHeader>
                         <div className="space-y-4 mt-2">
@@ -128,9 +132,11 @@ export function FuncionariosListPage() {
                 </Dialog>
 
                 <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                    <DialogTrigger asChild>
-                        <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> Novo Funcionário</Button>
-                    </DialogTrigger>
+                    {hasPermission('rh.manage') && (
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> Novo Funcionário</Button>
+                        </DialogTrigger>
+                    )}
                     <DialogContent className="sm:max-w-[460px]">
                         <DialogHeader><DialogTitle>Novo Funcionário</DialogTitle></DialogHeader>
                         <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="space-y-3 mt-2">
@@ -260,12 +266,14 @@ export function FuncionariosListPage() {
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem asChild><Link to={`/rh/funcionarios/${e.id}`}>Ver Detalhe</Link></DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    className="text-destructive"
-                                                    onClick={() => void updateMutation.mutateAsync({ id: e.id, estado: e.estado === 'Ativo' ? 'Inativo' : 'Ativo' })}
-                                                >
-                                                    {e.estado === 'Ativo' ? 'Inativar' : 'Ativar'}
-                                                </DropdownMenuItem>
+                                                {hasPermission('rh.manage') && (
+                                                    <DropdownMenuItem
+                                                        className="text-destructive"
+                                                        onClick={() => void updateMutation.mutateAsync({ id: e.id, estado: e.estado === 'Ativo' ? 'Inativo' : 'Ativo' })}
+                                                    >
+                                                        {e.estado === 'Ativo' ? 'Inativar' : 'Ativar'}
+                                                    </DropdownMenuItem>
+                                                )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>

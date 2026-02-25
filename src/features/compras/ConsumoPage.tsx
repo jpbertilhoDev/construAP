@@ -9,8 +9,10 @@ import { useConsumptions, useCreateConsumption, useMaterials } from './hooks/use
 import { useForm } from 'react-hook-form'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 export function ConsumoPage() {
+    const { hasPermission } = usePermissions()
     const [isOpen, setIsOpen] = useState(false)
     const obraFilter = ''
 
@@ -38,9 +40,11 @@ export function ConsumoPage() {
                     <p className="text-muted-foreground text-sm">Registo de saída de stock por obra</p>
                 </div>
                 <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                    <DialogTrigger asChild>
-                        <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> Registar Consumo</Button>
-                    </DialogTrigger>
+                    {hasPermission('compras.manage') && (
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> Registar Consumo</Button>
+                        </DialogTrigger>
+                    )}
                     <DialogContent className="sm:max-w-[420px]">
                         <DialogHeader><DialogTitle>Registar Consumo de Material</DialogTitle></DialogHeader>
                         <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="space-y-3 mt-2">

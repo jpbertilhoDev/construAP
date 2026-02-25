@@ -2,8 +2,10 @@ import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { AppLayout } from '@/app/layouts/AppLayout'
 import { RequireAuth } from '@/features/auth/RequireAuth'
+import { RequirePermission } from '@/features/auth/RequirePermission'
 import { LoginPage } from '@/features/auth/LoginPage'
-import { RegisterPage } from '@/features/auth/RegisterPage'
+import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
+import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 
 // Lazy load feature pages
 const DashboardPage = lazy(() =>
@@ -93,8 +95,12 @@ const router = createBrowserRouter([
         element: <LoginPage />,
     },
     {
-        path: '/register',
-        element: <RegisterPage />,
+        path: '/forgot-password',
+        element: <ForgotPasswordPage />,
+    },
+    {
+        path: '/reset-password',
+        element: <ResetPasswordPage />,
     },
 
     {
@@ -116,33 +122,33 @@ const router = createBrowserRouter([
             {
                 path: 'obras',
                 element: (
-                    <Suspense fallback={<PageLoader />}>
-                        <ObrasListPage />
-                    </Suspense>
+                    <RequirePermission permission="obras.view">
+                        <Suspense fallback={<PageLoader />}><ObrasListPage /></Suspense>
+                    </RequirePermission>
                 ),
             },
             {
                 path: 'obras/new',
                 element: (
-                    <Suspense fallback={<PageLoader />}>
-                        <ObraFormPage />
-                    </Suspense>
+                    <RequirePermission permission="obras.manage">
+                        <Suspense fallback={<PageLoader />}><ObraFormPage /></Suspense>
+                    </RequirePermission>
                 ),
             },
             {
                 path: 'obras/:id/edit',
                 element: (
-                    <Suspense fallback={<PageLoader />}>
-                        <ObraFormPage />
-                    </Suspense>
+                    <RequirePermission permission="obras.manage">
+                        <Suspense fallback={<PageLoader />}><ObraFormPage /></Suspense>
+                    </RequirePermission>
                 ),
             },
             {
                 path: 'obras/:id/*',
                 element: (
-                    <Suspense fallback={<PageLoader />}>
-                        <ObraDetailPage />
-                    </Suspense>
+                    <RequirePermission permission="obras.view">
+                        <Suspense fallback={<PageLoader />}><ObraDetailPage /></Suspense>
+                    </RequirePermission>
                 ),
             },
             {
@@ -158,35 +164,19 @@ const router = createBrowserRouter([
                 children: [
                     {
                         index: true,
-                        element: (
-                            <Suspense fallback={<PageLoader />}>
-                                <RelatoriosPage />
-                            </Suspense>
-                        ),
+                        element: (<RequirePermission permission="relatorios.view"><Suspense fallback={<PageLoader />}><RelatoriosPage /></Suspense></RequirePermission>),
                     },
                     {
                         path: 'obras',
-                        element: (
-                            <Suspense fallback={<PageLoader />}>
-                                <ReportObrasPage />
-                            </Suspense>
-                        ),
+                        element: (<RequirePermission permission="relatorios.view"><Suspense fallback={<PageLoader />}><ReportObrasPage /></Suspense></RequirePermission>),
                     },
                     {
                         path: 'orcamentos',
-                        element: (
-                            <Suspense fallback={<PageLoader />}>
-                                <ReportBudgetPage />
-                            </Suspense>
-                        ),
+                        element: (<RequirePermission permission="relatorios.view"><Suspense fallback={<PageLoader />}><ReportBudgetPage /></Suspense></RequirePermission>),
                     },
                     {
                         path: 'equipas',
-                        element: (
-                            <Suspense fallback={<PageLoader />}>
-                                <ReportTimesheetPage />
-                            </Suspense>
-                        ),
+                        element: (<RequirePermission permission="relatorios.view"><Suspense fallback={<PageLoader />}><ReportTimesheetPage /></Suspense></RequirePermission>),
                     }
                 ]
             },
@@ -201,64 +191,64 @@ const router = createBrowserRouter([
             {
                 path: 'admin',
                 element: (
-                    <Suspense fallback={<PageLoader />}>
-                        <AdminPage />
-                    </Suspense>
+                    <RequirePermission permission="admin.view">
+                        <Suspense fallback={<PageLoader />}><AdminPage /></Suspense>
+                    </RequirePermission>
                 ),
             },
             {
                 path: 'finance',
                 element: (
-                    <Suspense fallback={<PageLoader />}>
-                        <FinancePage />
-                    </Suspense>
+                    <RequirePermission permission="finance.view">
+                        <Suspense fallback={<PageLoader />}><FinancePage /></Suspense>
+                    </RequirePermission>
                 ),
             },
             // ── RH ──────────────────────────────────────────────────
             {
                 path: 'rh',
-                element: (<Suspense fallback={<PageLoader />}><RHPage /></Suspense>),
+                element: (<RequirePermission permission="rh.view"><Suspense fallback={<PageLoader />}><RHPage /></Suspense></RequirePermission>),
             },
             {
                 path: 'rh/funcionarios',
-                element: (<Suspense fallback={<PageLoader />}><FuncionariosListPage /></Suspense>),
+                element: (<RequirePermission permission="rh.view"><Suspense fallback={<PageLoader />}><FuncionariosListPage /></Suspense></RequirePermission>),
             },
             {
                 path: 'rh/funcionarios/:id',
-                element: (<Suspense fallback={<PageLoader />}><FuncionarioDetailPage /></Suspense>),
+                element: (<RequirePermission permission="rh.view"><Suspense fallback={<PageLoader />}><FuncionarioDetailPage /></Suspense></RequirePermission>),
             },
             {
                 path: 'rh/apontamentos',
-                element: (<Suspense fallback={<PageLoader />}><ApontamentosPage /></Suspense>),
+                element: (<RequirePermission permission="rh.view"><Suspense fallback={<PageLoader />}><ApontamentosPage /></Suspense></RequirePermission>),
             },
             {
                 path: 'rh/aprovacoes',
-                element: (<Suspense fallback={<PageLoader />}><AprovacoesPage /></Suspense>),
+                element: (<RequirePermission permission="rh.manage"><Suspense fallback={<PageLoader />}><AprovacoesPage /></Suspense></RequirePermission>),
             },
             // ── Compras ──────────────────────────────────────────────
             {
                 path: 'compras',
-                element: (<Suspense fallback={<PageLoader />}><ComprasPage /></Suspense>),
+                element: (<RequirePermission permission="compras.view"><Suspense fallback={<PageLoader />}><ComprasPage /></Suspense></RequirePermission>),
             },
             {
                 path: 'compras/fornecedores',
-                element: (<Suspense fallback={<PageLoader />}><FornecedoresListPage /></Suspense>),
+                element: (<RequirePermission permission="compras.view"><Suspense fallback={<PageLoader />}><FornecedoresListPage /></Suspense></RequirePermission>),
             },
             {
                 path: 'compras/materiais',
-                element: (<Suspense fallback={<PageLoader />}><MateriaisPage /></Suspense>),
+                element: (<RequirePermission permission="compras.view"><Suspense fallback={<PageLoader />}><MateriaisPage /></Suspense></RequirePermission>),
             },
             {
                 path: 'compras/pedidos',
-                element: (<Suspense fallback={<PageLoader />}><PedidosListPage /></Suspense>),
+                element: (<RequirePermission permission="compras.view"><Suspense fallback={<PageLoader />}><PedidosListPage /></Suspense></RequirePermission>),
             },
             {
                 path: 'compras/pedidos/:id',
-                element: (<Suspense fallback={<PageLoader />}><PedidoDetailPage /></Suspense>),
+                element: (<RequirePermission permission="compras.view"><Suspense fallback={<PageLoader />}><PedidoDetailPage /></Suspense></RequirePermission>),
             },
             {
                 path: 'compras/consumo',
-                element: (<Suspense fallback={<PageLoader />}><ConsumoPage /></Suspense>),
+                element: (<RequirePermission permission="compras.view"><Suspense fallback={<PageLoader />}><ConsumoPage /></Suspense></RequirePermission>),
             },
         ]
     },

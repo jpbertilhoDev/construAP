@@ -11,6 +11,7 @@ import { usePurchaseOrders, useCreatePurchaseOrder, useSuppliers, useMaterials }
 import { useForm } from 'react-hook-form'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { NewPOLine } from '@/services/materiais'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 const estadoVariant: Record<string, any> = {
     Rascunho: 'secondary', Submetido: 'warning', Aprovado: 'default',
@@ -18,6 +19,7 @@ const estadoVariant: Record<string, any> = {
 }
 
 export function PedidosListPage() {
+    const { hasPermission } = usePermissions()
     const [search, setSearch] = useState('')
     const [estadoFilter, setEstadoFilter] = useState('')
     const [isOpen, setIsOpen] = useState(false)
@@ -77,9 +79,11 @@ export function PedidosListPage() {
                     </SelectContent>
                 </Select>
                 <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                    <DialogTrigger asChild>
-                        <Button size="sm" className="gap-1.5 ml-auto"><Plus className="h-4 w-4" /> Novo PO</Button>
-                    </DialogTrigger>
+                    {hasPermission('compras.manage') && (
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="gap-1.5 ml-auto"><Plus className="h-4 w-4" /> Novo PO</Button>
+                        </DialogTrigger>
+                    )}
                     <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                         <DialogHeader><DialogTitle>Novo Pedido de Compra</DialogTitle></DialogHeader>
                         <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="space-y-4 mt-2">

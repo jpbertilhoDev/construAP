@@ -32,6 +32,7 @@ import { formatDate, formatCurrency } from '@/lib/utils'
 
 
 import type { ObraStatus } from '@/types/database.types'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 
 const TABS = [
@@ -73,6 +74,7 @@ export function ObraDetailPage() {
     const [showArchiveDialog, setShowArchiveDialog] = useState(false)
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
+    const { hasPermission } = usePermissions()
     const { data: obra, isLoading, isError } = useObra(id!)
     const { data: financials } = useObraFinancials(id!)
     const updateMutation = useUpdateObra(id!)
@@ -149,7 +151,7 @@ export function ObraDetailPage() {
                                     >
                                         {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                                     </select>
-                                ) : (
+                                ) : hasPermission('obras.manage') ? (
                                     <button
                                         onClick={() => setEditingStatus(true)}
                                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-opacity hover:opacity-80 ${statusColor[obra.status]}`}
@@ -157,6 +159,10 @@ export function ObraDetailPage() {
                                     >
                                         {obra.status} <Edit2 className="ml-1 h-2.5 w-2.5" />
                                     </button>
+                                ) : (
+                                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusColor[obra.status]}`}>
+                                        {obra.status}
+                                    </span>
                                 )}
                             </div>
                             <span className="text-xs text-muted-foreground">{obra.type}</span>
@@ -164,32 +170,34 @@ export function ObraDetailPage() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon">
-                                <MoreVertical className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                                <Link to={`/obras/${obra.id}/edit`} className="cursor-pointer">
-                                    <Edit2 className="w-4 h-4 mr-2" /> Editar Obra
-                                </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setShowArchiveDialog(true)} className="cursor-pointer">
-                                <Archive className="w-4 h-4 mr-2" /> Arquivar
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                                onClick={() => setShowDeleteDialog(true)}
-                                className="cursor-pointer focus:bg-destructive focus:text-destructive-foreground text-destructive"
-                            >
-                                <Trash2 className="w-4 h-4 mr-2" /> Apagar Obra
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
+                {hasPermission('obras.manage') && (
+                    <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon">
+                                    <MoreVertical className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                    <Link to={`/obras/${obra.id}/edit`} className="cursor-pointer">
+                                        <Edit2 className="w-4 h-4 mr-2" /> Editar Obra
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setShowArchiveDialog(true)} className="cursor-pointer">
+                                    <Archive className="w-4 h-4 mr-2" /> Arquivar
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={() => setShowDeleteDialog(true)}
+                                    className="cursor-pointer focus:bg-destructive focus:text-destructive-foreground text-destructive"
+                                >
+                                    <Trash2 className="w-4 h-4 mr-2" /> Apagar Obra
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                )}
             </div>
 
             <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
@@ -312,7 +320,7 @@ export function ObraDetailPage() {
                                                         <Edit2 className="h-3 w-3 text-green-600" />
                                                     </Button>
                                                 </div>
-                                            ) : (
+                                            ) : hasPermission('obras.manage') ? (
                                                 <button
                                                     onClick={() => {
                                                         setTempContractValue(obra.contract_value || 0)
@@ -323,6 +331,10 @@ export function ObraDetailPage() {
                                                 >
                                                     {formatCurrency(obra.contract_value || 0)} <Edit2 className="ml-2 h-3 w-3 text-muted-foreground" />
                                                 </button>
+                                            ) : (
+                                                <span className="text-lg font-bold text-primary">
+                                                    {formatCurrency(obra.contract_value || 0)}
+                                                </span>
                                             )}
                                         </div>
                                     </div>

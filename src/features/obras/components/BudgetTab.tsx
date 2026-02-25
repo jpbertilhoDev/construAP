@@ -23,6 +23,7 @@ import { useBudget, useCreateBudget, useAddBudgetItem, useUpdateBudgetItem, useD
 import { formatCurrency } from '@/lib/utils'
 import { Edit2 } from 'lucide-react'
 import type { BudgetItem } from '@/services/budgets'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 const budgetItemSchema = z.object({
     description: z.string().min(2, 'Descrição obrigatória'),
@@ -34,6 +35,7 @@ const budgetItemSchema = z.object({
 type BudgetItemFormValues = z.infer<typeof budgetItemSchema>
 
 export function BudgetTab({ obraId }: { obraId: string }) {
+    const { hasPermission } = usePermissions()
     const { data: budget, isLoading, isError } = useBudget(obraId)
     const createBudgetMutation = useCreateBudget()
     const addItemMutation = useAddBudgetItem()
@@ -84,13 +86,15 @@ export function BudgetTab({ obraId }: { obraId: string }) {
                         <p className="text-muted-foreground text-sm mt-1 max-w-xs mb-6">
                             Esta obra ainda não tem um orçamento base. Crie o primeiro rascunho.
                         </p>
-                        <Button
-                            onClick={() => void createBudgetMutation.mutateAsync(obraId)}
-                            disabled={createBudgetMutation.isPending}
-                        >
-                            {createBudgetMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                            Criar Orçamento (v1)
-                        </Button>
+                        {hasPermission('obras.manage') && (
+                            <Button
+                                onClick={() => void createBudgetMutation.mutateAsync(obraId)}
+                                disabled={createBudgetMutation.isPending}
+                            >
+                                {createBudgetMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                                Criar Orçamento (v1)
+                            </Button>
+                        )}
                     </div>
                 </CardContent>
             </Card>
@@ -115,11 +119,13 @@ export function BudgetTab({ obraId }: { obraId: string }) {
                     <CardDescription>Gerencie as rubricas e os valores orçamentados.</CardDescription>
                 </div>
                 <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
-                    <DialogTrigger asChild>
-                        <Button size="sm" onClick={() => setEditingItem(null)}>
-                            <Plus className="h-4 w-4" /> Nova Rubrica
-                        </Button>
-                    </DialogTrigger>
+                    {hasPermission('obras.manage') && (
+                        <DialogTrigger asChild>
+                            <Button size="sm" onClick={() => setEditingItem(null)}>
+                                <Plus className="h-4 w-4" /> Nova Rubrica
+                            </Button>
+                        </DialogTrigger>
+                    )}
                     <DialogContent className="sm:max-w-[425px]">
                         <DialogHeader>
                             <DialogTitle>{editingItem ? 'Editar Rubrica' : 'Adicionar Rubrica'}</DialogTitle>
@@ -155,7 +161,7 @@ export function BudgetTab({ obraId }: { obraId: string }) {
                                     <TableHead className="text-right w-[120px]">Qtd</TableHead>
                                     <TableHead className="text-right w-[140px]">P.U. (€)</TableHead>
                                     <TableHead className="text-right w-[140px]">Total (€)</TableHead>
-                                    <TableHead className="w-[60px]"></TableHead>
+                                    {hasPermission('obras.manage') && <TableHead className="w-[60px]"></TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -166,26 +172,28 @@ export function BudgetTab({ obraId }: { obraId: string }) {
                                         <TableCell className="text-right">{item.qty}</TableCell>
                                         <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
                                         <TableCell className="text-right font-medium">{formatCurrency(item.total)}</TableCell>
-                                        <TableCell>
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                    onClick={() => handleEdit(item)}
-                                                >
-                                                    <Edit2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                    onClick={() => setDeleteId(item.id)}
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
+                                        {hasPermission('obras.manage') && (
+                                            <TableCell>
+                                                <div className="flex justify-end gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                        onClick={() => handleEdit(item)}
+                                                    >
+                                                        <Edit2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                        onClick={() => setDeleteId(item.id)}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 ))}
                             </TableBody>

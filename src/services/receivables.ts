@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { getProfile } from '@/lib/getProfile'
 import type { ReceivableStatus } from '@/types/database.types'
 
 export type Receivable = {
@@ -29,9 +30,7 @@ export type ReceivableInsert = {
 }
 
 export async function fetchReceivables(): Promise<Receivable[]> {
-    const { data: profileData } = await supabase.from('profiles').select('tenant_id').single()
-    const profile = profileData as { tenant_id: string } | null
-    if (!profile) throw new Error('Perfil não encontrado')
+    const profile = await getProfile()
 
 
     const { data, error } = await (supabase
@@ -67,9 +66,7 @@ export async function fetchReceivablesByObra(obraId: string): Promise<Receivable
 }
 
 export async function createReceivable(payload: ReceivableInsert): Promise<Receivable> {
-    const { data: profileData } = await supabase.from('profiles').select('id, tenant_id').single()
-    const profile = profileData as { id: string; tenant_id: string } | null
-    if (!profile) throw new Error('Perfil não encontrado')
+    const profile = await getProfile()
 
     const { data, error } = await supabase
         .from('accounts_receivable')

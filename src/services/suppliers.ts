@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { getProfile } from '@/lib/getProfile'
 
 export type Supplier = {
     id: string
@@ -21,9 +22,7 @@ export type SupplierInsert = {
 }
 
 export async function fetchSuppliers(): Promise<Supplier[]> {
-    const { data: profileData } = await supabase.from('profiles').select('tenant_id').single()
-    const profile = profileData as { tenant_id: string } | null
-    if (!profile) throw new Error('Perfil não encontrado')
+    const profile = await getProfile()
 
     const { data, error } = await supabase
         .from('suppliers')
@@ -37,9 +36,7 @@ export async function fetchSuppliers(): Promise<Supplier[]> {
 }
 
 export async function createSupplier(payload: SupplierInsert): Promise<Supplier> {
-    const { data: profileData } = await supabase.from('profiles').select('tenant_id').single()
-    const profile = profileData as { tenant_id: string } | null
-    if (!profile) throw new Error('Perfil não encontrado')
+    const profile = await getProfile()
 
 
     const { data, error } = await supabase

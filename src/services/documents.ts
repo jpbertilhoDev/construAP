@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { getProfile } from '@/lib/getProfile'
 
 export type AppDocument = {
     id: string
@@ -35,9 +36,7 @@ export async function createDocument(
     name: string,
     category: string = 'Geral'
 ): Promise<AppDocument> {
-    const { data: profileData } = await supabase.from('profiles').select('id, tenant_id').single()
-    const profile = profileData as { id: string; tenant_id: string } | null
-    if (!profile) throw new Error('Perfil não encontrado')
+    const profile = await getProfile()
 
     // 1. Upload to Supabase Storage
     const fileExt = file.name.split('.').pop()

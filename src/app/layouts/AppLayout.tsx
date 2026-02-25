@@ -14,26 +14,40 @@ import {
     ShoppingCart,
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { usePermissions, type PermissionKey } from '@/features/auth/usePermissions'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import logoApp from '@/assets/logoapp.png'
 
-const navItems = [
-    { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/obras', icon: HardHat, label: 'Obras' },
-    { to: '/finance', icon: Wallet, label: 'Financeiro' },
-    { to: '/rh', icon: Users, label: 'RH' },
-    { to: '/compras', icon: ShoppingCart, label: 'Compras' },
-    // { to: '/imobiliario', icon: Building2, label: 'Imobiliário' }, // oculto temporariamente
-    { to: '/relatorios', icon: FileText, label: 'Relatórios' },
-    { to: '/admin', icon: Settings, label: 'Administração' },
+interface NavItem {
+    to: string
+    icon: React.ElementType
+    label: string
+    permission: PermissionKey
+}
+
+const navItems: NavItem[] = [
+    { to: '/', icon: LayoutDashboard, label: 'Dashboard', permission: 'dashboard.view' },
+    { to: '/obras', icon: HardHat, label: 'Obras', permission: 'obras.view' },
+    { to: '/finance', icon: Wallet, label: 'Financeiro', permission: 'finance.view' },
+    { to: '/rh', icon: Users, label: 'RH', permission: 'rh.view' },
+    { to: '/compras', icon: ShoppingCart, label: 'Compras', permission: 'compras.view' },
+    { to: '/relatorios', icon: FileText, label: 'Relatórios', permission: 'relatorios.view' },
+    { to: '/admin', icon: Settings, label: 'Administração', permission: 'admin.view' },
 ]
 
 
 export function AppLayout() {
     const { user, signOut } = useAuth()
+    const { hasPermission, isLoading: permsLoading } = usePermissions()
     const navigate = useNavigate()
     const [sidebarOpen, setSidebarOpen] = useState(false)
+
+    // Filter nav items the current user has access to
+    const visibleNavItems = navItems.filter((item) => {
+        if (permsLoading) return item.permission === 'dashboard.view'
+        return hasPermission(item.permission)
+    })
 
     const handleSignOut = async () => {
         await signOut()
@@ -64,7 +78,7 @@ export function AppLayout() {
 
                 {/* Nav */}
                 <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-                    {navItems.map(({ to, icon: Icon, label }) => (
+                    {visibleNavItems.map(({ to, icon: Icon, label }) => (
                         <NavLink
                             key={to}
                             to={to}

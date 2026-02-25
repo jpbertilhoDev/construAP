@@ -11,6 +11,7 @@ import { useEmployees } from './hooks/useEmployees'
 import { useObras } from '@/features/obras/hooks/useObras'
 import { useForm } from 'react-hook-form'
 import { formatDate } from '@/lib/utils'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 const estadoVariant: Record<string, any> = { Rascunho: 'secondary', Submetido: 'warning', Aprovado: 'success', Rejeitado: 'destructive' }
 
@@ -34,6 +35,7 @@ function getWeekDays(): string[] {
 }
 
 export function ApontamentosPage() {
+    const { hasPermission } = usePermissions()
     const weekDays = getWeekDays()
 
     const [createOpen, setCreateOpen] = useState(false)
@@ -79,9 +81,11 @@ export function ApontamentosPage() {
                     <h1 className="text-2xl font-bold tracking-tight">Folha de Ponto</h1>
                     <p className="text-muted-foreground text-sm">Semana de {formatDate(weekDays[0])} a {formatDate(weekDays[6])}</p>
                 </div>
-                <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
-                    <Plus className="h-4 w-4" /> Registar Apontamento
-                </Button>
+                {hasPermission('rh.manage') && (
+                    <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
+                        <Plus className="h-4 w-4" /> Registar Apontamento
+                    </Button>
+                )}
             </div>
 
             {/* Calendário semanal simples */}

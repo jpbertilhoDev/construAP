@@ -6,8 +6,10 @@ import { Badge } from '@/components/ui/badge'
 import { useEmployees } from './hooks/useEmployees'
 import { useTimesheets } from './hooks/useEmployees'
 import { formatDate } from '@/lib/utils'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 export function RHPage() {
+    const { hasPermission } = usePermissions()
     const { data: employees = [] } = useEmployees()
     const { data: pendentes = [] } = useTimesheets({ estado: 'Submetido' })
     const { data: todayTs = [] } = useTimesheets({
@@ -29,9 +31,11 @@ export function RHPage() {
                     <h1 className="text-2xl font-bold tracking-tight">Recursos Humanos</h1>
                     <p className="text-muted-foreground text-sm mt-0.5">Gestão de funcionários, alocações e apontamentos</p>
                 </div>
-                <Button asChild size="sm" className="gap-1.5">
-                    <Link to="/rh/funcionarios"><Plus className="h-4 w-4" /> Novo Funcionário</Link>
-                </Button>
+                {hasPermission('rh.manage') && (
+                    <Button asChild size="sm" className="gap-1.5">
+                        <Link to="/rh/funcionarios"><Plus className="h-4 w-4" /> Novo Funcionário</Link>
+                    </Button>
+                )}
             </div>
 
             {/* KPI Cards */}

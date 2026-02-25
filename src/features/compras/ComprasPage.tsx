@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { usePurchaseOrders } from './hooks/useCompras'
 import { useMaterials } from './hooks/useCompras'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 const estadoVariant: Record<string, any> = {
     Rascunho: 'secondary',
@@ -18,6 +19,7 @@ const estadoVariant: Record<string, any> = {
 }
 
 export function ComprasPage() {
+    const { hasPermission } = usePermissions()
     const { data: pos = [] } = usePurchaseOrders()
     const { data: materials = [] } = useMaterials()
 
@@ -32,9 +34,11 @@ export function ComprasPage() {
                     <h1 className="text-2xl font-bold tracking-tight">Compras & Materiais</h1>
                     <p className="text-muted-foreground text-sm">Fornecedores, pedidos, receção e consumo por obra</p>
                 </div>
-                <Button asChild size="sm" className="gap-1.5">
-                    <Link to="/compras/pedidos/novo"><Plus className="h-4 w-4" /> Novo Pedido</Link>
-                </Button>
+                {hasPermission('compras.manage') && (
+                    <Button asChild size="sm" className="gap-1.5">
+                        <Link to="/compras/pedidos/novo"><Plus className="h-4 w-4" /> Novo Pedido</Link>
+                    </Button>
+                )}
             </div>
 
             {/* KPIs */}

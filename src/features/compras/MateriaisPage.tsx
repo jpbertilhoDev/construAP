@@ -11,6 +11,7 @@ import { useMaterials, useCreateMaterial } from './hooks/useCompras'
 import { useForm } from 'react-hook-form'
 import { formatCurrency } from '@/lib/utils'
 import type { Material } from '@/services/materiais'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 const UNIDADES = ['un', 'kg', 'm', 'm2', 'm3', 'L', 'ROL', 'CX', 'hr', 'outro']
 const CATEGORIAS = ['Betão e Cimento', 'Alvenaria', 'Cofragem', 'Ferro e Aço', 'Madeira', 'Impermeabilização', 'Elétrico', 'Hidráulica', 'Acabamentos', 'EPI', 'Ferramentas', 'Outro']
@@ -18,6 +19,7 @@ const CATEGORIAS = ['Betão e Cimento', 'Alvenaria', 'Cofragem', 'Ferro e Aço',
 type MaterialForm = Omit<Material, 'id' | 'tenant_id' | 'custo_medio' | 'estoque_atual' | 'created_at' | 'updated_at'>
 
 export function MateriaisPage() {
+    const { hasPermission } = usePermissions()
     const [search, setSearch] = useState('')
     const [categoria, setCategoria] = useState('')
     const [isOpen, setIsOpen] = useState(false)
@@ -57,9 +59,11 @@ export function MateriaisPage() {
                     </SelectContent>
                 </Select>
                 <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                    <DialogTrigger asChild>
-                        <Button size="sm" className="gap-1.5 ml-auto"><Plus className="h-4 w-4" /> Novo Material</Button>
-                    </DialogTrigger>
+                    {hasPermission('compras.manage') && (
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="gap-1.5 ml-auto"><Plus className="h-4 w-4" /> Novo Material</Button>
+                        </DialogTrigger>
+                    )}
                     <DialogContent className="sm:max-w-[480px]">
                         <DialogHeader><DialogTitle>Novo Material / Serviço</DialogTitle></DialogHeader>
                         <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="space-y-3 mt-2">
@@ -130,7 +134,9 @@ export function MateriaisPage() {
                 <Card><CardContent className="py-16 text-center">
                     <Package className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
                     <p className="text-muted-foreground">Nenhum material no catálogo.</p>
-                    <Button size="sm" className="mt-4 gap-1.5" onClick={() => setIsOpen(true)}><Plus className="h-4 w-4" /> Adicionar Primeiro Material</Button>
+                    {hasPermission('compras.manage') && (
+                        <Button size="sm" className="mt-4 gap-1.5" onClick={() => setIsOpen(true)}><Plus className="h-4 w-4" /> Adicionar Primeiro Material</Button>
+                    )}
                 </CardContent></Card>
             ) : (
                 <div className="border rounded-md bg-card">

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { getProfile } from '@/lib/getProfile'
 
 export type CashFlowTransaction = {
     tenant_id: string
@@ -13,9 +14,7 @@ export type CashFlowTransaction = {
 }
 
 export async function fetchCashflow(): Promise<CashFlowTransaction[]> {
-    const { data: profileData } = await supabase.from('profiles').select('tenant_id').single()
-    const profile = profileData as { tenant_id: string } | null
-    if (!profile) throw new Error('Perfil não encontrado')
+    const profile = await getProfile()
 
     const { data, error } = await (supabase.from('vw_cashflow' as any)
         .select('*')

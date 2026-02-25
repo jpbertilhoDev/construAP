@@ -27,6 +27,7 @@ import { useReceivables, useReceivablesByObra, useCreateReceivable, useUpdateRec
 import { useObras } from '@/features/obras/hooks/useObras'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { ReceivableStatus } from '@/types/database.types'
+import { usePermissions } from '@/features/auth/usePermissions'
 
 const receivableSchema = z.object({
     description: z.string().min(3, 'Descrição muito curta'),
@@ -41,6 +42,7 @@ const receivableSchema = z.object({
 type ReceivableForm = z.infer<typeof receivableSchema>
 
 export function ReceivablesTab({ obraId }: { obraId?: string }) {
+    const { hasPermission } = usePermissions()
     const [isNewDialogOpen, setIsNewDialogOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -130,12 +132,14 @@ export function ReceivablesTab({ obraId }: { obraId?: string }) {
                 </div>
 
                 <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Nova Receita
-                        </Button>
-                    </DialogTrigger>
+                    {hasPermission('finance.manage') && (
+                        <DialogTrigger asChild>
+                            <Button>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Nova Receita
+                            </Button>
+                        </DialogTrigger>
+                    )}
                     <DialogContent className="sm:max-w-[450px]">
                         <DialogHeader>
                             <DialogTitle>Nova Conta a Receber</DialogTitle>
@@ -200,7 +204,7 @@ export function ReceivablesTab({ obraId }: { obraId?: string }) {
                             <TableHead>Vencimento</TableHead>
                             <TableHead>Valor</TableHead>
                             <TableHead>Estado</TableHead>
-                            <TableHead className="w-[80px]"></TableHead>
+                            {hasPermission('finance.manage') && <TableHead className="w-[80px]"></TableHead>}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -233,27 +237,35 @@ export function ReceivablesTab({ obraId }: { obraId?: string }) {
                                             {formatCurrency(receivable.amount)}
                                         </TableCell>
                                         <TableCell>
-                                            <select
-                                                className={`text-xs font-semibold px-2 py-1 rounded-md border-0 focus:ring-1 focus:ring-ring cursor-pointer ${statusConfig[receivable.status].color}`}
-                                                value={receivable.status}
-                                                onChange={(e) => void handleUpdateStatus(receivable.id, receivable.status, e.target.value as ReceivableStatus)}
-                                            >
-                                                {(Object.keys(statusConfig) as ReceivableStatus[]).map(status => (
-                                                    <option key={status} value={status}>{status}</option>
-                                                ))}
-                                            </select>
+                                            {hasPermission('finance.manage') ? (
+                                                <select
+                                                    className={`text-xs font-semibold px-2 py-1 rounded-md border-0 focus:ring-1 focus:ring-ring cursor-pointer ${statusConfig[receivable.status].color}`}
+                                                    value={receivable.status}
+                                                    onChange={(e) => void handleUpdateStatus(receivable.id, receivable.status, e.target.value as ReceivableStatus)}
+                                                >
+                                                    {(Object.keys(statusConfig) as ReceivableStatus[]).map(status => (
+                                                        <option key={status} value={status}>{status}</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <span className={`text-xs font-semibold px-2 py-1 rounded-md ${statusConfig[receivable.status].color}`}>
+                                                    {receivable.status}
+                                                </span>
+                                            )}
                                         </TableCell>
 
-                                        <TableCell>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                onClick={() => setDeleteId(receivable.id)}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </TableCell>
+                                        {hasPermission('finance.manage') && (
+                                            <TableCell>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                    onClick={() => setDeleteId(receivable.id)}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 )
                             })

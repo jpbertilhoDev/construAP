@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { getProfile } from '@/lib/getProfile'
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -121,12 +122,7 @@ export type ImobDocumento = {
 
 // ─── Helper ──────────────────────────────────────────────────
 
-async function getProfile() {
-    const { data } = await supabase.from('profiles').select('id, tenant_id').single()
-    const p = data as { id: string; tenant_id: string } | null
-    if (!p) throw new Error('Perfil não encontrado')
-    return p
-}
+// getProfile imported from @/lib/getProfile
 
 // ─── Tipologias ──────────────────────────────────────────────
 
