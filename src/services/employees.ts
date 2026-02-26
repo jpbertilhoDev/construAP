@@ -26,6 +26,10 @@ export interface Employee {
     estado: 'Ativo' | 'Inativo' | 'Suspenso'
     notas?: string
     avatar_url?: string
+    situacao_fiscal: 'solteiro' | 'casado_2_titulares' | 'casado_unico_titular'
+    numero_dependentes: number
+    niss?: string
+    iban?: string
     created_by: string
     created_at: string
     updated_at: string
@@ -188,6 +192,11 @@ export async function uploadAvatar(employeeId: string, file: File): Promise<stri
     return publicUrl
 }
 
+export async function deleteEmployee(id: string): Promise<void> {
+    const { error } = await supabase.from('employees').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+}
+
 // ── Employee Rates ─────────────────────────────────────────────────────────────
 
 export async function fetchEmployeeRates(employeeId: string): Promise<EmployeeRate[]> {
@@ -219,6 +228,20 @@ export async function getActiveRate(employeeId: string): Promise<EmployeeRate | 
         .select('*')
         .eq('employee_id', employeeId)
         .lte('data_inicio', today)
+        .order('data_inicio', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    if (error) throw new Error(error.message)
+    return data as EmployeeRate | null
+}
+
+export async function getActiveRateAtDate(employeeId: string, date: string): Promise<EmployeeRate | null> {
+    const { data, error } = await supabase
+        .from('employee_rates')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .lte('data_inicio', date)
+        .or(`data_fim.is.null,data_fim.gte.${date}`)
         .order('data_inicio', { ascending: false })
         .limit(1)
         .maybeSingle()

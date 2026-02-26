@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Users, Clock, CheckCircle2, AlertTriangle, Plus, ArrowRight } from 'lucide-react'
+import { Users, Clock, CheckCircle2, AlertTriangle, Plus, ArrowRight, Wallet } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -99,6 +99,7 @@ export function RHPage() {
                     { title: 'Folha de Ponto', desc: 'Registar horas e presenças', href: '/rh/apontamentos', icon: Clock },
                     { title: 'Aprovações', desc: 'Aprovar/rejeitar apontamentos', href: '/rh/aprovacoes', icon: CheckCircle2 },
                     { title: 'Funcionários', desc: 'Gerir equipa e funções', href: '/rh/funcionarios', icon: Users },
+                    { title: 'Salários', desc: 'Processamento salarial mensal', href: '/rh/salarios', icon: Wallet },
                 ].map(item => (
                     <Link key={item.href} to={item.href}>
                         <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">

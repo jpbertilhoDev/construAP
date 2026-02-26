@@ -44,6 +44,16 @@ const AdminPage = lazy(() =>
 const FinancePage = lazy(() =>
     import('@/features/finance/FinancePage').then((m) => ({ default: m.FinancePage })),
 )
+// ── Payroll ────────────────────────────────────────────────────
+const PayrollPage = lazy(() =>
+    import('@/features/payroll/PayrollPage').then((m) => ({ default: m.PayrollPage })),
+)
+const PayrollProcessPage = lazy(() =>
+    import('@/features/payroll/PayrollProcessPage').then((m) => ({ default: m.PayrollProcessPage })),
+)
+const PayrollRunDetailPage = lazy(() =>
+    import('@/features/payroll/PayrollRunDetailPage').then((m) => ({ default: m.PayrollRunDetailPage })),
+)
 // ── RH ──────────────────────────────────────────────────────────
 const RHPage = lazy(() =>
     import('@/features/rh/RHPage').then((m) => ({ default: m.RHPage })),
@@ -224,6 +234,18 @@ const router = createBrowserRouter([
             {
                 path: 'rh/aprovacoes',
                 element: (<RequirePermission permission="rh.manage"><Suspense fallback={<PageLoader />}><AprovacoesPage /></Suspense></RequirePermission>),
+            },
+            {
+                path: 'rh/salarios',
+                element: (<RequirePermission permission="rh.view"><Suspense fallback={<PageLoader />}><PayrollPage /></Suspense></RequirePermission>),
+            },
+            {
+                path: 'rh/salarios/processar',
+                element: (<RequirePermission permission="rh.manage"><Suspense fallback={<PageLoader />}><PayrollProcessPage /></Suspense></RequirePermission>),
+            },
+            {
+                path: 'rh/salarios/:id',
+                element: (<RequirePermission permission="rh.view"><Suspense fallback={<PageLoader />}><PayrollRunDetailPage /></Suspense></RequirePermission>),
             },
             // ── Compras ──────────────────────────────────────────────
             {

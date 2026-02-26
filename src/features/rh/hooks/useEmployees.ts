@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
     fetchEmployeeRoles, createEmployeeRole, deleteEmployeeRole,
-    fetchEmployees, fetchEmployee, createEmployee, updateEmployee,
+    fetchEmployees, fetchEmployee, createEmployee, updateEmployee, deleteEmployee,
     fetchEmployeeRates, createEmployeeRate,
     fetchAllocations, createAllocation, updateAllocation, deleteAllocation,
     fetchTimesheets, createTimesheet, approveTimesheet, rejectTimesheet, updateTimesheet, deleteTimesheet,
@@ -69,6 +69,16 @@ export function useUpdateEmployee() {
         onSuccess: (_d, v) => {
             qc.invalidateQueries({ queryKey: EMPLOYEES_KEY })
             qc.invalidateQueries({ queryKey: [...EMPLOYEES_KEY, v.id] })
+        },
+    })
+}
+
+export function useDeleteEmployee() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (id: string) => deleteEmployee(id),
+        onSuccess: () => {
+            void qc.invalidateQueries({ queryKey: EMPLOYEES_KEY })
         },
     })
 }

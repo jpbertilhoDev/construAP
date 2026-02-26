@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Link } from 'react-router-dom'
-import { useEmployees, useCreateEmployee, useUpdateEmployee, useEmployeeRoles, useUploadAvatar, useCreateEmployeeRole, useDeleteEmployeeRole } from './hooks/useEmployees'
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee, useEmployeeRoles, useUploadAvatar, useCreateEmployeeRole, useDeleteEmployeeRole } from './hooks/useEmployees'
+import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { formatDate } from '@/lib/utils'
 import { usePermissions } from '@/features/auth/usePermissions'
@@ -43,6 +44,7 @@ export function FuncionariosListPage() {
     const { data: roles = [] } = useEmployeeRoles()
     const createMutation = useCreateEmployee()
     const updateMutation = useUpdateEmployee()
+    const deleteMutation = useDeleteEmployee()
     const uploadMutation = useUploadAvatar()
     const createRoleMutation = useCreateEmployeeRole()
     const deleteRoleMutation = useDeleteEmployeeRole()
@@ -267,12 +269,26 @@ export function FuncionariosListPage() {
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem asChild><Link to={`/rh/funcionarios/${e.id}`}>Ver Detalhe</Link></DropdownMenuItem>
                                                 {hasPermission('rh.manage') && (
-                                                    <DropdownMenuItem
-                                                        className="text-destructive"
-                                                        onClick={() => void updateMutation.mutateAsync({ id: e.id, estado: e.estado === 'Ativo' ? 'Inativo' : 'Ativo' })}
-                                                    >
-                                                        {e.estado === 'Ativo' ? 'Inativar' : 'Ativar'}
-                                                    </DropdownMenuItem>
+                                                    <>
+                                                        <DropdownMenuItem
+                                                            onClick={() => void updateMutation.mutateAsync({ id: e.id, estado: e.estado === 'Ativo' ? 'Inativo' : 'Ativo' })}
+                                                        >
+                                                            {e.estado === 'Ativo' ? 'Inativar' : 'Ativar'}
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            className="text-destructive"
+                                                            onClick={() => {
+                                                                if (window.confirm(`Tem certeza que deseja excluir ${e.nome}? Esta ação é irreversível.`)) {
+                                                                    void deleteMutation.mutateAsync(e.id).then(
+                                                                        () => { toast.success('Funcionário excluído') },
+                                                                        () => { toast.error('Erro ao excluir. Verifique dados associados.') },
+                                                                    )
+                                                                }
+                                                            }}
+                                                        >
+                                                            Excluir
+                                                        </DropdownMenuItem>
+                                                    </>
                                                 )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
