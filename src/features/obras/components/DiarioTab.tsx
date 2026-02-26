@@ -1,17 +1,20 @@
 import { useState } from 'react'
-import { Plus, Trash2, BookOpen, Loader2 } from 'lucide-react'
-import { useForm as useHookForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
+import { Plus, Loader2, BookOpen, LayoutList, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useDiarioEntries, useCreateDiarioEntry, useUpdateDiarioEntry, useDeleteDiarioEntry } from '../hooks/useDiario'
-import { formatDate } from '@/lib/utils'
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+} from '@/components/ui/card'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import {
     AlertDialog,
     AlertDialogAction,
@@ -21,26 +24,35 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Edit2 } from 'lucide-react'
+} from '@/components/ui/alert-dialog'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { Edit2, Trash2, Camera, AlertTriangle } from 'lucide-react'
+import { usePermissions } from '@/features/auth/usePermissions'
+import {
+    useDiarioEntries,
+    useCreateDiarioEntry,
+    useUpdateDiarioEntry,
+    useDeleteDiarioEntry,
+} from '../hooks/useDiario'
+import { DiarioEntryForm } from './DiarioEntryForm'
+import { DiarioTimeline } from './DiarioTimeline'
+import { DiarioExportDialog } from './DiarioExportDialog'
+import { formatDate } from '@/lib/utils'
 import type { DiarioEntry } from '@/services/diario'
-import { useEffect } from 'react'
 
-const diarioSchema = z.object({
-    entry_date: z.string().min(10, 'Data obrigatória'),
-    weather: z.string().optional(),
-    resources_count: z.coerce.number().min(0, 'Deve ser >= 0').optional(),
-    activities: z.string().optional(),
-    notes: z.string().optional(),
-})
+type ViewMode = 'timeline' | 'tabela'
 
-type DiarioFormValues = z.infer<typeof diarioSchema>
+export function DiarioTab({ obraId, obraName }: { obraId: string; obraName: string }) {
+    const { hasPermission } = usePermissions()
+    const canEdit = hasPermission('obras.manage')
 
-export function DiarioTab({ obraId }: { obraId: string }) {
     const { data: entries = [], isLoading, isError } = useDiarioEntries(obraId)
     const createMutation = useCreateDiarioEntry()
     const updateMutation = useUpdateDiarioEntry(obraId)
     const deleteMutation = useDeleteDiarioEntry(obraId)
+
+    const [view, setView] = useState<ViewMode>('timeline')
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [editingEntry, setEditingEntry] = useState<DiarioEntry | null>(null)
     const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -63,235 +75,279 @@ export function DiarioTab({ obraId }: { obraId: string }) {
     }
 
     if (isLoading) {
-        return <div className="py-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        return (
+            <div className="py-8 flex justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+        )
     }
 
     if (isError) {
-        return <div className="py-8 text-center text-destructive">Erro ao carregar entradas do diário.</div>
+        return (
+            <div className="py-8 text-center text-destructive">
+                Erro ao carregar entradas do diário.
+            </div>
+        )
     }
 
     return (
         <Card className="mt-4">
-            <CardHeader className="flex flex-row items-start justify-between">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div>
                     <CardTitle className="text-lg">Diário de Obra</CardTitle>
-                    <CardDescription>Registe os acontecimentos diários, clima, equipa e atividades.</CardDescription>
+                    <CardDescription>
+                        {entries.length === 0
+                            ? 'Registe os acontecimentos diários, clima, equipa e atividades.'
+                            : `${String(entries.length)} entrada${entries.length !== 1 ? 's' : ''} registada${entries.length !== 1 ? 's' : ''}`}
+                    </CardDescription>
                 </div>
-                <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
-                    <DialogTrigger asChild>
-                        <Button size="sm" onClick={() => setEditingEntry(null)}>
-                            <Plus className="h-4 w-4" /> Nova Entrada
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* View toggle */}
+                    <div className="flex rounded-md border overflow-hidden">
+                        <button
+                            className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                                view === 'timeline'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-background hover:bg-muted'
+                            }`}
+                            onClick={() => { setView('timeline') }}
+                        >
+                            <Clock className="h-3.5 w-3.5 inline mr-1" />
+                            Timeline
+                        </button>
+                        <button
+                            className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                                view === 'tabela'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-background hover:bg-muted'
+                            }`}
+                            onClick={() => { setView('tabela') }}
+                        >
+                            <LayoutList className="h-3.5 w-3.5 inline mr-1" />
+                            Tabela
+                        </button>
+                    </div>
+
+                    {/* Export PDF */}
+                    <DiarioExportDialog obraId={obraId} obraName={obraName} />
+
+                    {/* New entry */}
+                    {canEdit && (
+                        <Button
+                            size="sm"
+                            onClick={() => {
+                                setEditingEntry(null)
+                                setIsDialogOpen(true)
+                            }}
+                        >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Nova Entrada
                         </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
-                        <DialogHeader>
-                            <DialogTitle>{editingEntry ? 'Editar Entrada' : 'Registar no Diário'}</DialogTitle>
-                            <DialogDescription>
-                                {editingEntry ? 'Edite os dados desta entrada.' : 'Preencha os dados relevantes do dia de trabalho na obra.'}
-                            </DialogDescription>
-                        </DialogHeader>
-                        <AddDiarioForm
-                            obraId={obraId}
-                            initialData={editingEntry || undefined}
-                            onSuccess={() => handleOpenChange(false)}
-                            onSubmit={(payload) => editingEntry
-                                ? updateMutation.mutateAsync({ id: editingEntry.id, payload })
-                                : createMutation.mutateAsync(payload)
-                            }
-                            isPending={createMutation.isPending || updateMutation.isPending}
-                        />
-                    </DialogContent>
-                </Dialog>
+                    )}
+                </div>
             </CardHeader>
+
             <CardContent>
                 {entries.length === 0 ? (
                     <div className="py-12 flex flex-col items-center justify-center text-center border rounded-md bg-muted/20 border-dashed">
                         <BookOpen className="h-8 w-8 text-muted-foreground mb-3" />
                         <p className="font-medium">O Diário de Obra está vazio.</p>
                         <p className="text-muted-foreground text-sm max-w-sm mt-1">
-                            Adicione o primeiro registo diário para manter o histórico da execução.
+                            Adicione o primeiro registo diário para manter o histórico da
+                            execução.
                         </p>
                     </div>
+                ) : view === 'timeline' ? (
+                    <DiarioTimeline
+                        entries={entries}
+                        obraId={obraId}
+                        canEdit={canEdit}
+                        onEdit={handleEdit}
+                        onDelete={setDeleteId}
+                    />
                 ) : (
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader className="bg-muted/50">
-                                <TableRow>
-                                    <TableHead className="w-[120px]">Data</TableHead>
-                                    <TableHead className="w-[120px]">Clima</TableHead>
-                                    <TableHead className="text-center w-[100px]">Efetivos</TableHead>
-                                    <TableHead>Atividades Principais</TableHead>
-                                    <TableHead className="w-[60px]"></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {entries.map((entry) => (
-                                    <TableRow key={entry.id}>
-                                        <TableCell className="font-medium">{formatDate(entry.entry_date)}</TableCell>
-                                        <TableCell>{entry.weather || '-'}</TableCell>
-                                        <TableCell className="text-center">{entry.resources_count}</TableCell>
-                                        <TableCell className="max-w-[300px] truncate" title={entry.activities || ''}>
-                                            {entry.activities || <span className="text-muted-foreground">-</span>}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    variant="ghost" size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                    onClick={() => handleEdit(entry)}
-                                                >
-                                                    <Edit2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost" size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                    onClick={() => setDeleteId(entry.id)}
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
+                    <DiarioTableView
+                        entries={entries}
+                        canEdit={canEdit}
+                        onEdit={handleEdit}
+                        onDelete={setDeleteId}
+                    />
                 )}
-
-                <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Eliminar Entrada do Diário</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Tem a certeza que deseja eliminar esta entrada do Diário de Obra?
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                onClick={() => void handleDelete()}
-                            >
-                                Eliminar Entrada
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
             </CardContent>
+
+            {/* ── Entry form dialog ──────────────────────────── */}
+            <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
+                <DialogContent className="sm:max-w-[700px]">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {editingEntry ? 'Editar Entrada' : 'Registar no Diário'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {editingEntry
+                                ? 'Edite os dados desta entrada.'
+                                : 'Preencha os dados relevantes do dia de trabalho na obra.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DiarioEntryForm
+                        obraId={obraId}
+                        initialData={editingEntry || undefined}
+                        onSuccess={() => {
+                            handleOpenChange(false)
+                        }}
+                        onSubmit={async (payload) => {
+                            if (editingEntry) {
+                                return updateMutation.mutateAsync({
+                                    id: editingEntry.id,
+                                    payload: payload,
+                                })
+                            }
+                            return createMutation.mutateAsync(
+                                payload as Parameters<typeof createMutation.mutateAsync>[0],
+                            )
+                        }}
+                        isPending={createMutation.isPending || updateMutation.isPending}
+                    />
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Delete confirmation ────────────────────────── */}
+            <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Eliminar Entrada do Diário</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Tem a certeza que deseja eliminar esta entrada do Diário de Obra?
+                            Esta ação não pode ser revertida.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => void handleDelete()}
+                        >
+                            Eliminar Entrada
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Card>
     )
 }
 
-function AddDiarioForm({
-    obraId,
-    initialData,
-    onSuccess,
-    onSubmit,
-    isPending,
+// ── Legacy table view ───────────────────────────────────────
+
+function DiarioTableView({
+    entries,
+    canEdit,
+    onEdit,
+    onDelete,
 }: {
-    obraId: string;
-    initialData?: DiarioEntry;
-    onSuccess: () => void;
-    onSubmit: (payload: any) => Promise<any>;
-    isPending: boolean;
+    entries: DiarioEntry[]
+    canEdit: boolean
+    onEdit: (entry: DiarioEntry) => void
+    onDelete: (id: string) => void
 }) {
-    const form = useHookForm<DiarioFormValues>({
-        resolver: zodResolver(diarioSchema) as any,
-        defaultValues: {
-            entry_date: initialData ? new Date(initialData.entry_date).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
-            weather: initialData?.weather || 'Limpo',
-            resources_count: initialData?.resources_count ?? 0,
-            activities: initialData?.activities || '',
-            notes: initialData?.notes || '',
-        },
-    })
-
-    useEffect(() => {
-        if (initialData) {
-            form.reset({
-                entry_date: new Date(initialData.entry_date).toISOString().substring(0, 10),
-                weather: initialData.weather || 'Limpo',
-                resources_count: initialData.resources_count ?? 0,
-                activities: initialData.activities || '',
-                notes: initialData.notes || '',
-            })
-        }
-    }, [initialData, form])
-
-    const handleSubmit = async (values: DiarioFormValues) => {
-        try {
-            await onSubmit({
-                obra_id: obraId,
-                entry_date: values.entry_date,
-                weather: values.weather,
-                resources_count: values.resources_count,
-                activities: values.activities,
-                notes: values.notes,
-            })
-            form.reset()
-            onSuccess()
-        } catch {
-            // handle error
-        }
-    }
-
     return (
-        <form onSubmit={(e) => void form.handleSubmit(handleSubmit as any)(e)} className="space-y-4 pt-4">
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Data</label>
-                    <Input type="date" {...form.register('entry_date')} />
-                    {form.formState.errors.entry_date && (
-                        <p className="text-xs text-destructive">{form.formState.errors.entry_date.message}</p>
-                    )}
-                </div>
+        <div className="rounded-md border">
+            <Table>
+                <TableHeader className="bg-muted/50">
+                    <TableRow>
+                        <TableHead className="w-[110px]">Data</TableHead>
+                        <TableHead className="w-[100px]">Turno</TableHead>
+                        <TableHead className="w-[110px]">Clima</TableHead>
+                        <TableHead className="text-center w-[80px]">Efetivos</TableHead>
+                        <TableHead className="text-center w-[80px]">Progresso</TableHead>
+                        <TableHead className="text-center w-[60px]">Anexos</TableHead>
+                        <TableHead>Atividades</TableHead>
+                        {canEdit && <TableHead className="w-[60px]" />}
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {entries.map((entry) => {
+                        const totalWorkers = Object.keys(entry.workers_by_category).length > 0
+                            ? Object.values(entry.workers_by_category).reduce(
+                                  (s, n) => s + n,
+                                  0,
+                              )
+                            : entry.resources_count
 
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Clima</label>
-                    <Select
-                        onValueChange={(val: string) => form.setValue('weather', val)}
-                        defaultValue={form.getValues('weather')}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Limpo">Limpo / Sol</SelectItem>
-                            <SelectItem value="Nublado">Nublado</SelectItem>
-                            <SelectItem value="Chuva Ligeira">Chuva Ligeira</SelectItem>
-                            <SelectItem value="Chuva Forte">Chuva Forte</SelectItem>
-                            <SelectItem value="Vento Forte">Vento Forte</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
+                        const activitySummary =
+                            entry.structured_activities.length > 0
+                                ? entry.structured_activities
+                                      .map((a) => a.description)
+                                      .join('; ')
+                                : entry.activities || ''
 
-            <div className="space-y-2">
-                <label className="text-sm font-medium">Nº Total de Trabalhadores (Efetivos)</label>
-                <Input type="number" min="0" {...form.register('resources_count')} />
-            </div>
-
-            <div className="space-y-2">
-                <label className="text-sm font-medium">Atividades Executadas</label>
-                <Textarea
-                    {...form.register('activities')}
-                    placeholder="Resumo das frentes de trabalho do dia..."
-                    className="h-24"
-                />
-            </div>
-
-            <div className="space-y-2">
-                <label className="text-sm font-medium">Ocorrências / Notas Adicionais</label>
-                <Textarea
-                    {...form.register('notes')}
-                    placeholder="Acidentes, atrasos de material, visitas de fiscalização..."
-                    className="h-16"
-                />
-            </div>
-
-            <Button type="submit" className="w-full mt-4" disabled={isPending}>
-                {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : initialData ? 'Guardar Alterações' : 'Registar Dia'}
-            </Button>
-        </form>
+                        return (
+                            <TableRow key={entry.id}>
+                                <TableCell className="font-medium">
+                                    {formatDate(entry.entry_date)}
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant="outline" className="text-[10px]">
+                                        {entry.work_shift}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>{entry.weather || '-'}</TableCell>
+                                <TableCell className="text-center">{String(totalWorkers)}</TableCell>
+                                <TableCell className="text-center">
+                                    {String(entry.progress_pct)}%
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <div className="flex items-center justify-center gap-1.5">
+                                        {(entry.diario_photos?.length ?? 0) > 0 && (
+                                            <span className="flex items-center gap-0.5 text-muted-foreground" title="Fotos">
+                                                <Camera className="h-3 w-3" />
+                                                <span className="text-[10px]">{String(entry.diario_photos?.length ?? 0)}</span>
+                                            </span>
+                                        )}
+                                        {(entry.diario_incidents?.length ?? 0) > 0 && (
+                                            <span className="flex items-center gap-0.5 text-orange-500" title="Ocorrências">
+                                                <AlertTriangle className="h-3 w-3" />
+                                                <span className="text-[10px]">{String(entry.diario_incidents?.length ?? 0)}</span>
+                                            </span>
+                                        )}
+                                        {(entry.diario_photos?.length ?? 0) === 0 && (entry.diario_incidents?.length ?? 0) === 0 && (
+                                            <span className="text-muted-foreground">-</span>
+                                        )}
+                                    </div>
+                                </TableCell>
+                                <TableCell
+                                    className="max-w-[250px] truncate"
+                                    title={activitySummary}
+                                >
+                                    {activitySummary || (
+                                        <span className="text-muted-foreground">-</span>
+                                    )}
+                                </TableCell>
+                                {canEdit && (
+                                    <TableCell>
+                                        <div className="flex justify-end gap-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                onClick={() => { onEdit(entry) }}
+                                            >
+                                                <Edit2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                onClick={() => { onDelete(entry.id) }}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                )}
+                            </TableRow>
+                        )
+                    })}
+                </TableBody>
+            </Table>
+        </div>
     )
 }

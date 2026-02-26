@@ -368,7 +368,7 @@ export function ObraDetailPage() {
                     {activeTab === 'custos' && <CostsTab obraId={obra.id} />}
                     {activeTab === 'alocacoes' && <AllocationsTab obraId={obra.id} />}
                     {activeTab === 'receitas' && <ReceivablesTab obraId={obra.id} />}
-                    {activeTab === 'diario' && <DiarioTab obraId={obra.id} />}
+                    {activeTab === 'diario' && <DiarioTab obraId={obra.id} obraName={obra.name} />}
                     {activeTab === 'tarefas' && <TasksTab obraId={obra.id} />}
                     {activeTab === 'documentos' && <DocumentsTab obraId={obra.id} />}
 
