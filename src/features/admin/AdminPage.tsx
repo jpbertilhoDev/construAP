@@ -16,6 +16,8 @@ import {
     Save,
     Loader2,
     UserPlus,
+    CreditCard,
+    Clock,
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -57,6 +59,9 @@ import {
     deleteUser,
 } from '@/services/admin'
 import type { Role, Permission, UserWithRoles, TenantSettings } from '@/services/admin'
+import { usePlan } from '@/hooks/usePlan'
+import { fetchAllPlans, type Plan } from '@/services/subscription'
+import { PlanBadge } from '@/components/PlanBadge'
 
 // ════════════════════════════════════════════════════════════════════════════
 // ROLES TAB
@@ -1096,10 +1101,311 @@ function AuditTab() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// PLAN TAB
+// ════════════════════════════════════════════════════════════════════════════
+
+function UsageMeter({
+    label,
+    current,
+    max,
+}: {
+    label: string
+    current: number
+    max: number | null
+}) {
+    const isUnlimited = max === null
+    const pct = isUnlimited ? 0 : max > 0 ? Math.min(100, (current / max) * 100) : 0
+    const isNearLimit = !isUnlimited && pct >= 80
+    const isAtLimit = !isUnlimited && pct >= 100
+
+    return (
+        <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">{label}</span>
+                <span className="text-muted-foreground">
+                    {current} / {isUnlimited ? 'Ilimitado' : max}
+                </span>
+            </div>
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                    className={`h-full rounded-full transition-all ${
+                        isAtLimit
+                            ? 'bg-destructive'
+                            : isNearLimit
+                              ? 'bg-amber-500'
+                              : 'bg-primary'
+                    }`}
+                    style={{ width: isUnlimited ? '0%' : `${pct}%` }}
+                />
+            </div>
+        </div>
+    )
+}
+
+function PlanTab() {
+    const { plan, subscription, usage, isTrialing, trialDaysRemaining, isLoading } = usePlan()
+
+    const { data: allPlans = [], isLoading: plansLoading } = useQuery({
+        queryKey: ['all-plans'],
+        queryFn: fetchAllPlans,
+        staleTime: 1000 * 60 * 10,
+    })
+
+    if (isLoading || plansLoading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
+    return (
+        <div className="space-y-6">
+            <p className="text-sm text-muted-foreground">
+                Informacoes sobre o plano e utilizacao actual da sua empresa.
+            </p>
+
+            {/* Trial Banner */}
+            {isTrialing && (
+                <Card className="border-amber-500/30 bg-amber-500/5">
+                    <CardContent className="flex items-center gap-4 pt-6">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10">
+                            <Clock className="h-5 w-5 text-amber-600" />
+                        </div>
+                        <div>
+                            <p className="font-semibold">Periodo de Teste</p>
+                            <p className="text-sm text-muted-foreground">
+                                O seu trial termina em <strong>{trialDaysRemaining} dia{trialDaysRemaining !== 1 ? 's' : ''}</strong>.
+                                {subscription?.trial_ends_at && (
+                                    <> ({new Date(subscription.trial_ends_at).toLocaleDateString('pt-PT')})</>
+                                )}
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Current Plan + Usage */}
+            <div className="grid gap-6 lg:grid-cols-2">
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <CreditCard className="h-4 w-4" />
+                            Plano Actual
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {plan ? (
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <Building2 className="h-5 w-5 text-primary" />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-lg">{plan.name}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {plan.price_eur > 0
+                                                ? `${plan.price_eur} EUR / mes`
+                                                : 'Gratuito'}
+                                        </p>
+                                    </div>
+                                    <PlanBadge />
+                                </div>
+                                <div className="text-xs text-muted-foreground pt-2">
+                                    Estado: <Badge variant="outline" className="text-xs ml-1">{subscription?.status ?? '---'}</Badge>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                Nenhum plano configurado.
+                            </p>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Utilizacao
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <UsageMeter
+                            label="Utilizadores"
+                            current={usage?.user_count ?? 0}
+                            max={plan?.max_users ?? null}
+                        />
+                        <UsageMeter
+                            label="Obras"
+                            current={usage?.obra_count ?? 0}
+                            max={plan?.max_obras ?? null}
+                        />
+                        <UsageMeter
+                            label="Funcionarios"
+                            current={usage?.employee_count ?? 0}
+                            max={plan?.max_employees ?? null}
+                        />
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Plans Comparison */}
+            {allPlans.length > 0 && (
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base">Comparar Planos</CardTitle>
+                        <CardDescription>Veja as funcionalidades e limites de cada plano.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b">
+                                        <th className="text-left px-3 py-2 font-medium text-muted-foreground">
+                                            Recurso
+                                        </th>
+                                        {allPlans.map((p) => (
+                                            <th
+                                                key={p.id}
+                                                className={`text-center px-3 py-2 font-medium ${
+                                                    p.id === plan?.id
+                                                        ? 'text-primary bg-primary/5'
+                                                        : 'text-muted-foreground'
+                                                }`}
+                                            >
+                                                {p.name}
+                                                {p.id === plan?.id && (
+                                                    <span className="block text-[10px] font-normal">(actual)</span>
+                                                )}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    <tr>
+                                        <td className="px-3 py-2">Preco / mes</td>
+                                        {allPlans.map((p) => (
+                                            <td
+                                                key={p.id}
+                                                className={`text-center px-3 py-2 ${p.id === plan?.id ? 'bg-primary/5 font-medium' : ''}`}
+                                            >
+                                                {p.price_eur > 0 ? `${p.price_eur} EUR` : 'Gratis'}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                    <tr>
+                                        <td className="px-3 py-2">Utilizadores</td>
+                                        {allPlans.map((p) => (
+                                            <td
+                                                key={p.id}
+                                                className={`text-center px-3 py-2 ${p.id === plan?.id ? 'bg-primary/5' : ''}`}
+                                            >
+                                                {p.max_users ?? 'Ilimitado'}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                    <tr>
+                                        <td className="px-3 py-2">Obras</td>
+                                        {allPlans.map((p) => (
+                                            <td
+                                                key={p.id}
+                                                className={`text-center px-3 py-2 ${p.id === plan?.id ? 'bg-primary/5' : ''}`}
+                                            >
+                                                {p.max_obras ?? 'Ilimitado'}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                    <tr>
+                                        <td className="px-3 py-2">Funcionarios</td>
+                                        {allPlans.map((p) => (
+                                            <td
+                                                key={p.id}
+                                                className={`text-center px-3 py-2 ${p.id === plan?.id ? 'bg-primary/5' : ''}`}
+                                            >
+                                                {p.max_employees ?? 'Ilimitado'}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                    <tr>
+                                        <td className="px-3 py-2">Payroll</td>
+                                        {allPlans.map((p) => (
+                                            <td
+                                                key={p.id}
+                                                className={`text-center px-3 py-2 ${p.id === plan?.id ? 'bg-primary/5' : ''}`}
+                                            >
+                                                {p.features.payroll ? (
+                                                    <Check className="h-4 w-4 text-green-600 mx-auto" />
+                                                ) : (
+                                                    <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                                                )}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                    <tr>
+                                        <td className="px-3 py-2">Imobiliario</td>
+                                        {allPlans.map((p) => (
+                                            <td
+                                                key={p.id}
+                                                className={`text-center px-3 py-2 ${p.id === plan?.id ? 'bg-primary/5' : ''}`}
+                                            >
+                                                {p.features.imobiliario ? (
+                                                    <Check className="h-4 w-4 text-green-600 mx-auto" />
+                                                ) : (
+                                                    <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                                                )}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                    <tr>
+                                        <td className="px-3 py-2">Relatorios Avancados</td>
+                                        {allPlans.map((p) => (
+                                            <td
+                                                key={p.id}
+                                                className={`text-center px-3 py-2 ${p.id === plan?.id ? 'bg-primary/5' : ''}`}
+                                            >
+                                                {p.features.relatorios_avancados ? (
+                                                    <Check className="h-4 w-4 text-green-600 mx-auto" />
+                                                ) : (
+                                                    <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                                                )}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                    <tr>
+                                        <td className="px-3 py-2">Acesso API</td>
+                                        {allPlans.map((p) => (
+                                            <td
+                                                key={p.id}
+                                                className={`text-center px-3 py-2 ${p.id === plan?.id ? 'bg-primary/5' : ''}`}
+                                            >
+                                                {p.features.api_access ? (
+                                                    <Check className="h-4 w-4 text-green-600 mx-auto" />
+                                                ) : (
+                                                    <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                                                )}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+    )
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ════════════════════════════════════════════════════════════════════════════
 
 export function AdminPage() {
+    // Support deep-linking to tabs via ?tab= query param (e.g. from UpgradeBanner)
+    const params = new URLSearchParams(window.location.search)
+    const defaultTab = params.get('tab') ?? 'users'
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div>
@@ -1109,7 +1415,7 @@ export function AdminPage() {
                 </p>
             </div>
 
-            <Tabs defaultValue="users">
+            <Tabs defaultValue={defaultTab}>
                 <TabsList className="mb-4">
                     <TabsTrigger value="users" className="gap-1.5">
                         <Users className="h-3.5 w-3.5" />
@@ -1122,6 +1428,10 @@ export function AdminPage() {
                     <TabsTrigger value="tenant" className="gap-1.5">
                         <Building2 className="h-3.5 w-3.5" />
                         Empresa
+                    </TabsTrigger>
+                    <TabsTrigger value="plano" className="gap-1.5">
+                        <CreditCard className="h-3.5 w-3.5" />
+                        Plano
                     </TabsTrigger>
                     <TabsTrigger value="audit" className="gap-1.5">
                         <History className="h-3.5 w-3.5" />
@@ -1137,6 +1447,9 @@ export function AdminPage() {
                 </TabsContent>
                 <TabsContent value="tenant">
                     <TenantTab />
+                </TabsContent>
+                <TabsContent value="plano">
+                    <PlanTab />
                 </TabsContent>
                 <TabsContent value="audit">
                     <AuditTab />

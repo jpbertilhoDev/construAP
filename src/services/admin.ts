@@ -147,86 +147,16 @@ export async function saveRolePermissions(roleId: string, permissionIds: string[
 // ── Users / Profiles ─────────────────────────────────────────────────────────
 
 export async function fetchUsersWithRoles(): Promise<UserWithRoles[]> {
-    const profile = await getProfile()
-    const { supabaseAdmin } = await import('@/lib/supabaseAdmin')
-
-    // 1. Fetch ALL auth users (primary source — shows everyone in the database)
-    const { data: authData } = await supabaseAdmin.auth.admin.listUsers({
-        page: 1,
-        perPage: 1000,
-    })
-    const authUsers = authData?.users ?? []
-
-    // 2. Fetch ALL profiles (service role bypasses RLS)
-    const { data: allProfiles } = await supabaseAdmin
-        .from('profiles')
-        .select('id, email, name, avatar_url, tenant_id, created_at')
-    const profileMap = new Map(
-        (allProfiles ?? []).map((p) => [p.id, p]),
-    )
-
-    // 3. Fetch user_roles for the current tenant
-    const { data: userRoles } = await supabase
-        .from('user_roles')
-        .select('id, profile_id, role, obra_id, custom_role_id')
-        .eq('tenant_id', profile.tenant_id)
-
-    // 4. Fetch custom roles for names
-    const { data: roles } = await supabase
-        .from('roles')
-        .select('id, name')
-        .eq('tenant_id', profile.tenant_id)
-    const rolesMap = Object.fromEntries((roles ?? []).map((r) => [r.id, r.name]))
-
-    // 5. Build combined list: auth users enriched with profile + role data
-    const result: UserWithRoles[] = authUsers.map((au) => {
-        const prof = profileMap.get(au.id)
-        const inCurrentTenant = prof?.tenant_id === profile.tenant_id
-
-        const pRoles = inCurrentTenant
-            ? (userRoles ?? [])
-                .filter((ur) => ur.profile_id === au.id)
-                .map((ur) => ({
-                    id: ur.id,
-                    name: ur.custom_role_id ? rolesMap[ur.custom_role_id] ?? ur.role : ur.role,
-                    obra_id: ur.obra_id,
-                    custom_role_id: ur.custom_role_id,
-                }))
-            : []
-
-        const hasLoggedIn = !!au.last_sign_in_at
-        let status: UserStatus
-        if (!prof) {
-            status = 'orphan' // auth user without profile
-        } else if (hasLoggedIn) {
-            status = 'active'
-        } else {
-            status = 'pending'
-        }
-
-        return {
-            id: au.id,
-            email: au.email ?? prof?.email,
-            name: prof?.name ?? (au.user_metadata as Record<string, string>)?.name,
-            avatar_url: prof?.avatar_url,
-            tenant_id: prof?.tenant_id,
-            created_at: au.created_at,
-            last_sign_in_at: au.last_sign_in_at ?? null,
-            status,
-            inCurrentTenant,
-            roles: pRoles,
-        }
+    const { data, error } = await supabase.functions.invoke('admin-users', {
+        body: { action: 'list' },
     })
 
-    // Sort: current tenant first, then by name/email
-    result.sort((a, b) => {
-        if (a.inCurrentTenant !== b.inCurrentTenant) return a.inCurrentTenant ? -1 : 1
-        const nameA = (a.name ?? a.email ?? '').toLowerCase()
-        const nameB = (b.name ?? b.email ?? '').toLowerCase()
-        return nameA.localeCompare(nameB)
-    })
+    if (error) throw new Error(error.message)
 
-    return result
+    // Edge Function may return error in the body
+    if (data?.error) throw new Error(data.error)
+
+    return (data ?? []) as UserWithRoles[]
 }
 
 export async function createManagedUser(
@@ -236,42 +166,34 @@ export async function createManagedUser(
         roleId: string
     },
 ): Promise<{ id: string }> {
-    const profile = await getProfile()
-
-    // Import the admin client lazily to avoid issues if key isn't set yet
-    const { supabaseAdmin } = await import('@/lib/supabaseAdmin')
-
-    const origin = window.location.origin
-
-    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-        params.email,
-        {
-            data: {
-                name: params.name,
-                tenant_id: profile.tenant_id,
-                role_id: params.roleId,
-            },
-            redirectTo: `${origin}/reset-password`,
+    const { data, error } = await supabase.functions.invoke('admin-users', {
+        body: {
+            action: 'invite',
+            email: params.email,
+            name: params.name,
+            roleId: params.roleId,
         },
-    )
+    })
 
     if (error) throw new Error(error.message)
-    if (!data.user) throw new Error('Utilizador não foi criado.')
 
-    return { id: data.user.id }
+    // Handle plan limit errors
+    if (data?.error) {
+        throw new Error(data.error)
+    }
+
+    if (!data?.id) throw new Error('Utilizador não foi criado.')
+
+    return { id: data.id }
 }
 
 export async function deleteUser(userId: string): Promise<void> {
-    const { supabaseAdmin } = await import('@/lib/supabaseAdmin')
+    const { data, error } = await supabase.functions.invoke('admin-users', {
+        body: { action: 'delete', userId },
+    })
 
-    // Step 1: Delete profile first (cascades to user_roles, notifications, etc.)
-    // GoTrue fails if the CASCADE delete from auth.users → profiles runs internally.
-    const { error: profErr } = await supabaseAdmin.from('profiles').delete().eq('id', userId)
-    if (profErr) throw new Error(profErr.message)
-
-    // Step 2: Delete auth user (profile already gone, no FK cascade issues)
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
     if (error) throw new Error(error.message)
+    if (data?.error) throw new Error(data.error)
 }
 
 export async function assignRoleToUser(profileId: string, roleId: string): Promise<void> {

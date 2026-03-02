@@ -3,9 +3,12 @@ import { lazy, Suspense } from 'react'
 import { AppLayout } from '@/app/layouts/AppLayout'
 import { RequireAuth } from '@/features/auth/RequireAuth'
 import { RequirePermission } from '@/features/auth/RequirePermission'
+import { RequireFeature } from '@/features/auth/RequireFeature'
+import { RequirePlatformAdmin } from '@/features/auth/RequirePlatformAdmin'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
+import { RegisterPage } from '@/features/auth/RegisterPage'
 
 // Lazy load feature pages
 const DashboardPage = lazy(() =>
@@ -89,6 +92,16 @@ const PedidoDetailPage = lazy(() =>
 const ConsumoPage = lazy(() =>
     import('@/features/compras/ConsumoPage').then((m) => ({ default: m.ConsumoPage })),
 )
+// ── Platform Admin ──────────────────────────────────────────────
+const PlatformDashboardPage = lazy(() =>
+    import('@/features/platform/PlatformDashboardPage').then((m) => ({ default: m.PlatformDashboardPage })),
+)
+const PlatformTenantsPage = lazy(() =>
+    import('@/features/platform/PlatformTenantsPage').then((m) => ({ default: m.PlatformTenantsPage })),
+)
+const PlatformTenantDetailPage = lazy(() =>
+    import('@/features/platform/PlatformTenantDetailPage').then((m) => ({ default: m.PlatformTenantDetailPage })),
+)
 
 
 function PageLoader() {
@@ -111,6 +124,10 @@ const router = createBrowserRouter([
     {
         path: '/reset-password',
         element: <ResetPasswordPage />,
+    },
+    {
+        path: '/register',
+        element: <RegisterPage />,
     },
 
     {
@@ -164,9 +181,11 @@ const router = createBrowserRouter([
             {
                 path: 'imobiliario',
                 element: (
-                    <Suspense fallback={<PageLoader />}>
-                        <EmpreendimentosListPage />
-                    </Suspense>
+                    <RequireFeature feature="imobiliario">
+                        <Suspense fallback={<PageLoader />}>
+                            <EmpreendimentosListPage />
+                        </Suspense>
+                    </RequireFeature>
                 ),
             },
             {
@@ -193,9 +212,11 @@ const router = createBrowserRouter([
             {
                 path: 'imobiliario/:id',
                 element: (
-                    <Suspense fallback={<PageLoader />}>
-                        <EmpreendimentoDetailPage />
-                    </Suspense>
+                    <RequireFeature feature="imobiliario">
+                        <Suspense fallback={<PageLoader />}>
+                            <EmpreendimentoDetailPage />
+                        </Suspense>
+                    </RequireFeature>
                 ),
             },
             {
@@ -237,15 +258,15 @@ const router = createBrowserRouter([
             },
             {
                 path: 'rh/salarios',
-                element: (<RequirePermission permission="rh.view"><Suspense fallback={<PageLoader />}><PayrollPage /></Suspense></RequirePermission>),
+                element: (<RequirePermission permission="rh.view"><RequireFeature feature="payroll"><Suspense fallback={<PageLoader />}><PayrollPage /></Suspense></RequireFeature></RequirePermission>),
             },
             {
                 path: 'rh/salarios/processar',
-                element: (<RequirePermission permission="rh.manage"><Suspense fallback={<PageLoader />}><PayrollProcessPage /></Suspense></RequirePermission>),
+                element: (<RequirePermission permission="rh.manage"><RequireFeature feature="payroll"><Suspense fallback={<PageLoader />}><PayrollProcessPage /></Suspense></RequireFeature></RequirePermission>),
             },
             {
                 path: 'rh/salarios/:id',
-                element: (<RequirePermission permission="rh.view"><Suspense fallback={<PageLoader />}><PayrollRunDetailPage /></Suspense></RequirePermission>),
+                element: (<RequirePermission permission="rh.view"><RequireFeature feature="payroll"><Suspense fallback={<PageLoader />}><PayrollRunDetailPage /></Suspense></RequireFeature></RequirePermission>),
             },
             // ── Compras ──────────────────────────────────────────────
             {
@@ -271,6 +292,19 @@ const router = createBrowserRouter([
             {
                 path: 'compras/consumo',
                 element: (<RequirePermission permission="compras.view"><Suspense fallback={<PageLoader />}><ConsumoPage /></Suspense></RequirePermission>),
+            },
+            // ── Platform Admin ──────────────────────────────────────────
+            {
+                path: 'platform',
+                element: (<RequirePlatformAdmin><Suspense fallback={<PageLoader />}><PlatformDashboardPage /></Suspense></RequirePlatformAdmin>),
+            },
+            {
+                path: 'platform/tenants',
+                element: (<RequirePlatformAdmin><Suspense fallback={<PageLoader />}><PlatformTenantsPage /></Suspense></RequirePlatformAdmin>),
+            },
+            {
+                path: 'platform/tenants/:id',
+                element: (<RequirePlatformAdmin><Suspense fallback={<PageLoader />}><PlatformTenantDetailPage /></Suspense></RequirePlatformAdmin>),
             },
         ]
     },

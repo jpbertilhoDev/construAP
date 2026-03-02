@@ -1,9 +1,12 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthProvider'
+import { usePlan } from '@/hooks/usePlan'
+import { SuspendedPage } from './SuspendedPage'
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
     const { session, isLoading } = useAuth()
     const location = useLocation()
+    const { isSuspended, isLoading: planLoading } = usePlan()
 
     if (isLoading) {
         return (
@@ -18,6 +21,11 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
     if (!session) {
         return <Navigate to="/login" state={{ from: location }} replace />
+    }
+
+    // Show suspended page once plan data is loaded
+    if (!planLoading && isSuspended) {
+        return <SuspendedPage />
     }
 
     return <>{children}</>

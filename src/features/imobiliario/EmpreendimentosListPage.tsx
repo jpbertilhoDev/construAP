@@ -18,6 +18,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import type { EmpreendimentoEstado } from '@/services/empreendimentos'
+// Plan feature gating is handled at router level via RequireFeature
 
 const statusColors: Record<string, 'default' | 'secondary' | 'warning' | 'success' | 'destructive' | 'outline'> = {
     'Em Construção': 'warning',

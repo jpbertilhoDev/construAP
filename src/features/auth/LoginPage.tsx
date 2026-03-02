@@ -104,6 +104,11 @@ export function LoginPage() {
                             <p className="text-center text-sm text-slate-400">
                                 <Link to="/forgot-password" className="text-blue-400 hover:underline">Esqueceu a palavra-passe?</Link>
                             </p>
+
+                            <p className="text-center text-sm text-slate-400">
+                                Não tem conta?{' '}
+                                <Link to="/register" className="text-blue-400 hover:underline">Criar empresa</Link>
+                            </p>
                         </form>
                     </CardContent>
                 </Card>

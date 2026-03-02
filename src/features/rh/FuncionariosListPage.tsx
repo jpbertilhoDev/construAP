@@ -15,6 +15,8 @@ import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { formatDate } from '@/lib/utils'
 import { usePermissions } from '@/features/auth/usePermissions'
+import { usePlan } from '@/hooks/usePlan'
+import { UpgradeBanner } from '@/components/UpgradeBanner'
 
 type EmployeeForm = {
     nome: string
@@ -34,6 +36,7 @@ const estadoVariant: Record<string, 'success' | 'secondary' | 'warning'> = {
 
 export function FuncionariosListPage() {
     const { hasPermission } = usePermissions()
+    const { canCreate, plan } = usePlan()
     const [search, setSearch] = useState('')
     const [estadoFilter, setEstadoFilter] = useState('Ativo')
     const [isOpen, setIsOpen] = useState(false)
@@ -134,10 +137,13 @@ export function FuncionariosListPage() {
                 </Dialog>
 
                 <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                    {hasPermission('rh.manage') && (
+                    {hasPermission('rh.manage') && canCreate('employees') && (
                         <DialogTrigger asChild>
                             <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> Novo Funcionário</Button>
                         </DialogTrigger>
+                    )}
+                    {hasPermission('rh.manage') && !canCreate('employees') && (
+                        <UpgradeBanner resource="funcionarios" currentPlan={plan?.name ?? 'Gratuito'} />
                     )}
                     <DialogContent className="sm:max-w-[460px]">
                         <DialogHeader><DialogTitle>Novo Funcionário</DialogTitle></DialogHeader>

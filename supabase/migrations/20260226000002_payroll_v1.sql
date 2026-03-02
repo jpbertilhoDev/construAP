@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS payroll_config (
     CHECK (subsidio_alimentacao_tipo IN ('cash', 'card')),
   -- Horas Extra (multiplicadores)
   overtime_1h           NUMERIC(4,3) NOT NULL DEFAULT 1.250,
+  
   overtime_subsequent   NUMERIC(4,3) NOT NULL DEFAULT 1.375,
   overtime_rest_day     NUMERIC(4,3) NOT NULL DEFAULT 1.500,
   overtime_holiday      NUMERIC(4,3) NOT NULL DEFAULT 2.000,

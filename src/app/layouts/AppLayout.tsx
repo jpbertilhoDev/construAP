@@ -12,11 +12,14 @@ import {
     Wallet,
     Users,
     ShoppingCart,
+    Crown,
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { usePermissions, type PermissionKey } from '@/features/auth/usePermissions'
+import { usePlatformAdmin } from '@/hooks/usePlatformAdmin'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { PlanBadge } from '@/components/PlanBadge'
 import logoApp from '@/assets/logoapp.png'
 
 interface NavItem {
@@ -40,6 +43,7 @@ const navItems: NavItem[] = [
 export function AppLayout() {
     const { user, signOut } = useAuth()
     const { hasPermission, isLoading: permsLoading } = usePermissions()
+    const { isPlatformAdmin } = usePlatformAdmin()
     const navigate = useNavigate()
     const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -72,8 +76,9 @@ export function AppLayout() {
                 )}
             >
                 {/* Logo */}
-                <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
+                <div className="flex items-center justify-between px-6 py-5 border-b border-sidebar-border">
                     <img src={logoApp} alt="ConstruAP Logo" className="h-8" />
+                    <PlanBadge />
                 </div>
 
                 {/* Nav */}
@@ -97,6 +102,28 @@ export function AppLayout() {
                             {label}
                         </NavLink>
                     ))}
+
+                    {/* Platform Admin link (only visible to platform admins) */}
+                    {isPlatformAdmin && (
+                        <>
+                            <div className="my-2 border-t border-sidebar-border" />
+                            <NavLink
+                                to="/platform"
+                                onClick={() => setSidebarOpen(false)}
+                                className={({ isActive }) =>
+                                    cn(
+                                        'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                                        isActive
+                                            ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400'
+                                            : 'text-amber-600 dark:text-amber-500 hover:bg-amber-500/10',
+                                    )
+                                }
+                            >
+                                <Crown className="h-4 w-4 flex-shrink-0" />
+                                Platform Admin
+                            </NavLink>
+                        </>
+                    )}
                 </nav>
 
                 {/* User */}

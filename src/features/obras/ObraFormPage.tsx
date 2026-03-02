@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { useCreateObra, useUpdateObra, useObra } from '@/features/obras/hooks/useObras'
+import { usePlan } from '@/hooks/usePlan'
+import { UpgradeBanner } from '@/components/UpgradeBanner'
 import { type ObraType } from '@/types/database.types'
 
 const OBRA_TYPES: ObraType[] = [
@@ -31,6 +33,12 @@ export function ObraFormPage() {
     const navigate = useNavigate()
     const { id } = useParams<{ id: string }>()
     const isEditing = !!id
+    const { canCreate, plan } = usePlan()
+
+    // Block new obra creation if limit is reached (editing is always allowed)
+    if (!isEditing && !canCreate('obras')) {
+        return <UpgradeBanner resource="obras" currentPlan={plan?.name ?? 'Gratuito'} />
+    }
 
     const createMutation = useCreateObra()
     const updateMutation = useUpdateObra(id || '')
