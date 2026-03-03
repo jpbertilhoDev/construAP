@@ -292,26 +292,34 @@ export async function exportTenantDataCSV(): Promise<void> {
         supabase.from('accounts_payable').select('id,description,amount,iva_pct,due_date,status,created_at').eq('tenant_id', tid),
         supabase.from('accounts_receivable').select('id,description,amount,iva_pct,due_date,status,created_at').eq('tenant_id', tid),
     ])
+
     const sections: string[] = []
+
+    // Using any for the generic rows to satisfy the quick CSV generation
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toCsv = (rows: any[], label: string) => {
         if (!rows?.length) return
         const headers = Object.keys(rows[0]).join(',')
         const lines = rows.map((r) =>
-            Object.values(r).map((v) => "+String(v ?? '').replace(/"/g, '""')+").join(',')
+            Object.values(r).map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')
         )
-        sections.push(\n===  ===\n\n)
+        sections.push(`\n=== ${label} ===\n${headers}\n${lines.join('\n')}`)
     }
+
     toCsv(obras.data ?? [], 'Obras')
     toCsv(costs.data ?? [], 'Custos')
     toCsv(payables.data ?? [], 'Contas a Pagar')
     toCsv(receivables.data ?? [], 'Contas a Receber')
-    const content = ConstruAP — Exportação de Dados\nData: \n
+
+    const content = `ConstruAP — Exportação de Dados\nData: ${new Date().toLocaleDateString('pt-PT')}\n${sections.join('\n')}`
+
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = construap-dados-.csv
+    a.download = `construap-dados-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     URL.revokeObjectURL(url)
+
     await logAuditEvent('data.export', 'tenant', { entity_name: 'Exportação GDPR' })
 }
