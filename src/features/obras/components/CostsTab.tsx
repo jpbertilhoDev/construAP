@@ -38,6 +38,7 @@ const statusMap: Record<string, "default" | "secondary" | "destructive" | "outli
 const costSchema = z.object({
     description: z.string().min(2, 'Descrição obrigatória'),
     amount: z.coerce.number().min(0.01, 'Valor deve ser > 0'),
+    iva_pct: z.coerce.number().min(0).max(100),
     cost_date: z.string().min(10, 'Data obrigatória'),
     status: z.enum(['Rascunho', 'Pendente Aprovação', 'Aprovado', 'Anulado']),
     notes: z.string().optional(),
@@ -84,7 +85,9 @@ export function CostsTab({ obraId }: { obraId: string }) {
         return <div className="py-8 text-center text-destructive">Erro ao carregar custos reais.</div>
     }
 
-    const totalCosts = costs.reduce((acc, cost) => cost.status !== 'Anulado' ? acc + cost.amount : acc, 0)
+    const totalCostsBase = costs.reduce((acc, cost) => cost.status !== 'Anulado' ? acc + cost.amount : acc, 0)
+    const totalCostsIva = costs.reduce((acc, cost) => cost.status !== 'Anulado' ? acc + ((cost as any).valor_iva ?? cost.amount * 0.23) : acc, 0)
+    const totalComIva = totalCostsBase + totalCostsIva
 
     return (
         <Card className="mt-4">
@@ -140,7 +143,9 @@ export function CostsTab({ obraId }: { obraId: string }) {
                                     <TableHead>Fornecedor</TableHead>
                                     <TableHead>Estado</TableHead>
                                     <TableHead>Anexo</TableHead>
-                                    <TableHead className="text-right w-[140px]">Valor (€)</TableHead>
+                                    <TableHead className="text-right">Base (€)</TableHead>
+                                    <TableHead className="text-right">IVA (€)</TableHead>
+                                    <TableHead className="text-right font-semibold">Total c/ IVA (€)</TableHead>
                                     {hasPermission('obras.manage') && <TableHead className="w-[60px]"></TableHead>}
                                 </TableRow>
 
@@ -163,7 +168,9 @@ export function CostsTab({ obraId }: { obraId: string }) {
                                                 <span className="text-xs text-muted-foreground">-</span>
                                             )}
                                         </TableCell>
-                                        <TableCell className="text-right font-medium">{formatCurrency(cost.amount)}</TableCell>
+                                        <TableCell className="text-right text-muted-foreground">{formatCurrency(cost.amount)}</TableCell>
+                                        <TableCell className="text-right text-xs text-muted-foreground">{formatCurrency((cost as any).valor_iva ?? cost.amount * 0.23)}</TableCell>
+                                        <TableCell className="text-right font-semibold">{formatCurrency((cost as any).total ?? cost.amount * 1.23)}</TableCell>
 
                                         {hasPermission('obras.manage') && (
                                             <TableCell>
@@ -216,9 +223,19 @@ export function CostsTab({ obraId }: { obraId: string }) {
 
                 {costs.length > 0 && (
                     <div className="mt-6 flex justify-end">
-                        <div className="rounded-lg bg-muted px-6 py-4 flex items-center gap-6">
-                            <span className="text-sm font-medium text-muted-foreground">Total Gasto (Válido)</span>
-                            <span className="text-2xl font-bold tracking-tight">{formatCurrency(totalCosts)}</span>
+                        <div className="rounded-lg bg-muted px-6 py-4 flex items-center gap-8">
+                            <div className="text-center">
+                                <p className="text-xs text-muted-foreground">Base s/ IVA</p>
+                                <p className="text-lg font-semibold">{formatCurrency(totalCostsBase)}</p>
+                            </div>
+                            <div className="text-center">
+                                <p className="text-xs text-muted-foreground">IVA</p>
+                                <p className="text-lg font-semibold text-amber-600">{formatCurrency(totalCostsIva)}</p>
+                            </div>
+                            <div className="text-center border-l pl-8">
+                                <p className="text-xs text-muted-foreground font-medium">Total c/ IVA</p>
+                                <p className="text-2xl font-bold tracking-tight text-primary">{formatCurrency(totalComIva)}</p>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -245,6 +262,7 @@ function AddCostForm({
         defaultValues: {
             description: initialData?.description || '',
             amount: initialData?.amount || 0,
+            iva_pct: (initialData as any)?.iva_pct ?? 23,
             cost_date: initialData ? new Date(initialData.cost_date).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
             status: initialData?.status || 'Pendente Aprovação',
             notes: initialData?.notes || '',
@@ -252,6 +270,11 @@ function AddCostForm({
             budget_item_id: initialData?.budget_item_id || '',
         },
     })
+
+    const watchedAmount = form.watch('amount')
+    const watchedIva = form.watch('iva_pct') ?? 23
+    const valorIva = Math.round(Number(watchedAmount) * Number(watchedIva) / 100 * 100) / 100
+    const totalComIva = Number(watchedAmount) + valorIva
 
     const { data: suppliers } = useSuppliers()
     const { data: budget } = useBudget(obraId)
@@ -265,6 +288,7 @@ function AddCostForm({
                 obra_id: obraId,
                 description: values.description,
                 amount: values.amount,
+                iva_pct: values.iva_pct ?? 23,
                 cost_date: values.cost_date,
                 status: values.status,
                 notes: values.notes,
@@ -298,12 +322,35 @@ function AddCostForm({
                 )}
             </div>
 
-            <div className="space-y-2">
-                <label className="text-sm font-medium">Valor Total (€)</label>
-                <Input type="number" step="0.01" {...form.register('amount')} />
-                {form.formState.errors.amount && (
-                    <p className="text-xs text-destructive">{form.formState.errors.amount.message}</p>
-                )}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Valor Base s/ IVA (€)</label>
+                    <Input type="number" step="0.01" {...form.register('amount')} />
+                    {form.formState.errors.amount && (
+                        <p className="text-xs text-destructive">{form.formState.errors.amount.message}</p>
+                    )}
+                </div>
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Taxa IVA (%)</label>
+                    <Select
+                        onValueChange={(val) => form.setValue('iva_pct', Number(val))}
+                        defaultValue={String(form.getValues('iva_pct') ?? 23)}
+                    >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="23">23% — Taxa Normal</SelectItem>
+                            <SelectItem value="13">13% — Taxa Intermedária</SelectItem>
+                            <SelectItem value="6">6% — Taxa Reduzida</SelectItem>
+                            <SelectItem value="0">0% — Isento</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+
+            <div className="rounded-md border bg-muted/40 px-4 py-3 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">IVA ({watchedIva}%):</span>
+                <span>{valorIva.toFixed(2)} €</span>
+                <span className="font-semibold border-l ml-4 pl-4">Total c/ IVA: <span className="text-primary">{totalComIva.toFixed(2)} €</span></span>
             </div>
 
             <div className="space-y-2">
