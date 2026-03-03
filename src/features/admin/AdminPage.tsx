@@ -450,7 +450,7 @@ function InviteUserModal({
 
     return (
         <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-xl w-[95vw] max-h-[90dvh] overflow-y-auto">
                 <DialogHeader>
                     <div className="flex items-center gap-2">
                         <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -524,8 +524,8 @@ function InviteUserModal({
                                         key={r.id}
                                         onClick={() => setRoleId(r.id)}
                                         className={`relative flex flex-col items-start p-4 cursor-pointer rounded-xl border-2 transition-all duration-200 ${roleId === r.id
-                                                ? 'border-primary bg-primary/5 shadow-sm'
-                                                : 'border-border/50 bg-card hover:bg-accent/50 hover:border-border'
+                                            ? 'border-primary bg-primary/5 shadow-sm'
+                                            : 'border-border/50 bg-card hover:bg-accent/50 hover:border-border'
                                             }`}
                                     >
                                         <div className="flex items-center justify-between w-full mb-1">
