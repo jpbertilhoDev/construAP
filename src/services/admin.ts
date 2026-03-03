@@ -232,3 +232,86 @@ export async function updateTenantSettings(
     const { error } = await supabase.from('tenants').update(payload as never).eq('id', id)
     if (error) throw new Error(error.message)
 }
+
+// ── Audit Logs ───────────────────────────────────────────────────────────────
+
+export interface AuditLog {
+    id: string
+    tenant_id: string
+    user_id: string | null
+    user_email: string | null
+    user_name: string | null
+    action: string
+    entity_type: string
+    entity_id: string | null
+    entity_name: string | null
+    meta: Record<string, any>
+    created_at: string
+}
+
+export async function fetchAuditLogs(opts?: {
+    entity_type?: string
+    user_id?: string
+    limit?: number
+}): Promise<AuditLog[]> {
+    let query = supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(opts?.limit ?? 200)
+    if (opts?.entity_type) query = query.eq('entity_type', opts.entity_type)
+    if (opts?.user_id) query = query.eq('user_id', opts.user_id)
+    const { data, error } = await query
+    if (error) throw new Error(error.message)
+    return (data ?? []) as AuditLog[]
+}
+
+export async function logAuditEvent(
+    action: string,
+    entity_type: string,
+    opts?: { entity_id?: string; entity_name?: string; meta?: Record<string, any> }
+): Promise<void> {
+    const { error } = await supabase.rpc('log_audit_event', {
+        p_action: action,
+        p_entity_type: entity_type,
+        p_entity_id: opts?.entity_id ?? null,
+        p_entity_name: opts?.entity_name ?? null,
+        p_meta: opts?.meta ?? {},
+    })
+    if (error) console.warn('[audit]', error.message)
+}
+
+// ── Data Export (GDPR) ────────────────────────────────────────────────────────
+
+export async function exportTenantDataCSV(): Promise<void> {
+    const profile = await getProfile()
+    const tid = profile.tenant_id
+    const [obras, costs, payables, receivables] = await Promise.all([
+        supabase.from('obras').select('id,name,status,start_date,end_date,created_at').eq('tenant_id', tid),
+        supabase.from('costs').select('id,description,amount,iva_pct,cost_date,status,created_at').eq('tenant_id', tid),
+        supabase.from('accounts_payable').select('id,description,amount,iva_pct,due_date,status,created_at').eq('tenant_id', tid),
+        supabase.from('accounts_receivable').select('id,description,amount,iva_pct,due_date,status,created_at').eq('tenant_id', tid),
+    ])
+    const sections: string[] = []
+    const toCsv = (rows: any[], label: string) => {
+        if (!rows?.length) return
+        const headers = Object.keys(rows[0]).join(',')
+        const lines = rows.map((r) =>
+            Object.values(r).map((v) => "+String(v ?? '').replace(/"/g, '""')+").join(',')
+        )
+        sections.push(\n===  ===\n\n)
+    }
+    toCsv(obras.data ?? [], 'Obras')
+    toCsv(costs.data ?? [], 'Custos')
+    toCsv(payables.data ?? [], 'Contas a Pagar')
+    toCsv(receivables.data ?? [], 'Contas a Receber')
+    const content = ConstruAP — Exportação de Dados\nData: \n
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = construap-dados-.csv
+    a.click()
+    URL.revokeObjectURL(url)
+    await logAuditEvent('data.export', 'tenant', { entity_name: 'Exportação GDPR' })
+}
