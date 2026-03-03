@@ -163,21 +163,27 @@ async function handleList(
   supabaseAdmin: ReturnType<typeof createClient>,
   tenantId: string,
 ) {
-  // Fetch all auth users
+  // Fetch profiles only for this tenant (Service role bypasses RLS, so explicitly filter)
+  const { data: tenantProfiles } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email, name, avatar_url, tenant_id, created_at')
+    .eq('tenant_id', tenantId)
+
+  const profileMap = new Map(
+    (tenantProfiles ?? []).map((p: Record<string, unknown>) => [p.id, p]),
+  )
+
+  // Fast return if no profiles found to avoid loading all auth users
+  if (profileMap.size === 0) {
+    return jsonResponse(req, [])
+  }
+
+  // Fetch all auth users (auth.users doesn't have RLS, we must filter manually)
   const { data: authData } = await supabaseAdmin.auth.admin.listUsers({
     page: 1,
     perPage: 1000,
   })
   const authUsers = authData?.users ?? []
-
-  // Fetch all profiles (service role bypasses RLS)
-  const { data: allProfiles } = await supabaseAdmin
-    .from('profiles')
-    .select('id, email, name, avatar_url, tenant_id, created_at')
-
-  const profileMap = new Map(
-    (allProfiles ?? []).map((p: Record<string, unknown>) => [p.id, p]),
-  )
 
   // Fetch user_roles for the current tenant
   const { data: userRoles } = await supabaseAdmin
@@ -195,35 +201,30 @@ async function handleList(
     (roles ?? []).map((r: { id: string; name: string }) => [r.id, r.name]),
   )
 
-  // Build combined list
-  const result = authUsers.map((au) => {
-    const prof = profileMap.get(au.id) as Record<string, unknown> | undefined
-    const inCurrentTenant = prof?.tenant_id === tenantId
+  // Build combined list filtered strictly to this tenant
+  const result = []
 
-    const pRoles = inCurrentTenant
-      ? (userRoles ?? [])
-          .filter((ur: Record<string, unknown>) => ur.profile_id === au.id)
-          .map((ur: Record<string, unknown>) => ({
-            id: ur.id,
-            name: ur.custom_role_id
-              ? rolesMap[ur.custom_role_id as string] ?? ur.role
-              : ur.role,
-            obra_id: ur.obra_id,
-            custom_role_id: ur.custom_role_id,
-          }))
-      : []
+  for (const au of authUsers) {
+    const prof = profileMap.get(au.id) as Record<string, unknown> | undefined
+
+    // STRICT TENANT BOUNDARY: Only include users who exist in this tenant's profiles
+    if (!prof) continue
+
+    const pRoles = (userRoles ?? [])
+      .filter((ur: Record<string, unknown>) => ur.profile_id === au.id)
+      .map((ur: Record<string, unknown>) => ({
+        id: ur.id,
+        name: ur.custom_role_id
+          ? rolesMap[ur.custom_role_id as string] ?? ur.role
+          : ur.role,
+        obra_id: ur.obra_id,
+        custom_role_id: ur.custom_role_id,
+      }))
 
     const hasLoggedIn = !!au.last_sign_in_at
-    let status: string
-    if (!prof) {
-      status = 'orphan'
-    } else if (hasLoggedIn) {
-      status = 'active'
-    } else {
-      status = 'pending'
-    }
+    const status = hasLoggedIn ? 'active' : 'pending'
 
-    return {
+    result.push({
       id: au.id,
       email: au.email ?? prof?.email,
       name: prof?.name ?? (au.user_metadata as Record<string, string>)?.name,
@@ -232,14 +233,13 @@ async function handleList(
       created_at: au.created_at,
       last_sign_in_at: au.last_sign_in_at ?? null,
       status,
-      inCurrentTenant,
+      inCurrentTenant: true,
       roles: pRoles,
-    }
-  })
+    })
+  }
 
-  // Sort: current tenant first, then by name/email
+  // Sort by name/email
   result.sort((a, b) => {
-    if (a.inCurrentTenant !== b.inCurrentTenant) return a.inCurrentTenant ? -1 : 1
     const nameA = ((a.name ?? a.email) as string ?? '').toLowerCase()
     const nameB = ((b.name ?? b.email) as string ?? '').toLowerCase()
     return nameA.localeCompare(nameB)

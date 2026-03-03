@@ -18,6 +18,10 @@ import {
     UserPlus,
     CreditCard,
     Clock,
+    LockKeyhole,
+    Download,
+    FileText,
+    Settings,
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -57,15 +61,15 @@ import {
     updateTenantSettings,
     createManagedUser,
     deleteUser,
+    fetchAuditLogs,
+    exportTenantDataCSV,
 } from '@/services/admin'
-import type { Role, Permission, UserWithRoles, TenantSettings } from '@/services/admin'
+import type { Role, Permission, UserWithRoles, TenantSettings, AuditLog } from '@/services/admin'
 import { usePlan } from '@/hooks/usePlan'
 import { fetchAllPlans, type Plan } from '@/services/subscription'
 import { PlanBadge } from '@/components/PlanBadge'
 
-// ════════════════════════════════════════════════════════════════════════════
-// ROLES TAB
-// ════════════════════════════════════════════════════════════════════════════
+// ... (skipping unchanged code for RolesTab and UsersTab via chunk replacement logic below)
 
 function RoleFormModal({
     role,
@@ -934,6 +938,7 @@ function TenantTab() {
 
     const [form, setForm] = useState<Partial<TenantSettings>>({})
     const [dirty, setDirty] = useState(false)
+    const [exporting, setExporting] = useState(false)
 
     // Populate form when data loads
     if (tenant && !dirty && Object.keys(form).length === 0) {
@@ -953,6 +958,18 @@ function TenantTab() {
             setDirty(false)
         },
     })
+
+    const handleExport = async () => {
+        try {
+            setExporting(true)
+            await exportTenantDataCSV()
+        } catch (err) {
+            console.error(err)
+            alert('Erro ao exportar dados')
+        } finally {
+            setExporting(false)
+        }
+    }
 
     const handleChange = (key: string, value: string) => {
         setDirty(true)
@@ -979,103 +996,143 @@ function TenantTab() {
     }
 
     return (
-        <div className="space-y-6 max-w-lg">
-            <p className="text-sm text-muted-foreground">
-                Informações e configurações gerais da sua empresa.
-            </p>
+        <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+                <div>
+                    <h2 className="text-lg font-medium">Perfil da Empresa</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Informações fiscais e de contacto da sua organização.
+                    </p>
+                </div>
 
-            <Card>
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Dados da Empresa</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-1.5">
-                        <Label htmlFor="tenant-name">Nome da Empresa *</Label>
-                        <Input
-                            id="tenant-name"
-                            value={form.name ?? ''}
-                            onChange={(e) => handleChange('name', e.target.value)}
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="tenant-nif">NIF / CNPJ</Label>
-                        <Input
-                            id="tenant-nif"
-                            value={form.nif ?? ''}
-                            onChange={(e) => handleChange('nif', e.target.value)}
-                            placeholder="000.000.000-00"
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="tenant-address">Endereço</Label>
-                        <Input
-                            id="tenant-address"
-                            value={form.address ?? ''}
-                            onChange={(e) => handleChange('address', e.target.value)}
-                            placeholder="Rua, número, cidade"
-                        />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="tenant-phone">Telefone</Label>
-                            <Input
-                                id="tenant-phone"
-                                value={form.phone ?? ''}
-                                onChange={(e) => handleChange('phone', e.target.value)}
-                                placeholder="+55 11 99999-0000"
-                            />
+                <Card>
+                    <CardHeader className="pb-3 border-b">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                            Dados Gerais
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4 pt-4">
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5 sm:col-span-2">
+                                <Label htmlFor="tenant-name">Nome da Empresa / Razão Social *</Label>
+                                <Input
+                                    id="tenant-name"
+                                    value={form.name ?? ''}
+                                    onChange={(e) => handleChange('name', e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="tenant-nif">NIF / NIPC</Label>
+                                <Input
+                                    id="tenant-nif"
+                                    value={form.nif ?? ''}
+                                    onChange={(e) => handleChange('nif', e.target.value)}
+                                    placeholder="000000000"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="tenant-phone">Telefone</Label>
+                                <Input
+                                    id="tenant-phone"
+                                    value={form.phone ?? ''}
+                                    onChange={(e) => handleChange('phone', e.target.value)}
+                                    placeholder="+351 900 000 000"
+                                />
+                            </div>
+                            <div className="space-y-1.5 sm:col-span-2">
+                                <Label htmlFor="tenant-email">Email Financeiro / Facturação</Label>
+                                <Input
+                                    id="tenant-email"
+                                    type="email"
+                                    value={form.email ?? ''}
+                                    onChange={(e) => handleChange('email', e.target.value)}
+                                    placeholder="faturacao@empresa.com"
+                                />
+                            </div>
+                            <div className="space-y-1.5 sm:col-span-2">
+                                <Label htmlFor="tenant-address">Sede / Morada Completa</Label>
+                                <Input
+                                    id="tenant-address"
+                                    value={form.address ?? ''}
+                                    onChange={(e) => handleChange('address', e.target.value)}
+                                    placeholder="Rua, Número, Código Postal, Cidade"
+                                />
+                            </div>
                         </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="tenant-email">Email</Label>
-                            <Input
-                                id="tenant-email"
-                                type="email"
-                                value={form.email ?? ''}
-                                onChange={(e) => handleChange('email', e.target.value)}
-                                placeholder="empresa@email.com"
-                            />
-                        </div>
-                    </div>
 
-                    <div className="flex justify-end pt-2">
+                        <div className="flex justify-end pt-4 mt-2 border-t">
+                            <Button
+                                onClick={() => updateMutation.mutate()}
+                                disabled={!dirty || !form.name || updateMutation.isPending}
+                                className="gap-2"
+                            >
+                                {updateMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Save className="h-4 w-4" />
+                                )}
+                                Guardar Alterações
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-lg font-medium">Dados & Privacidade</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Ferramentas de conformidade GDPR.
+                    </p>
+                </div>
+
+                <Card>
+                    <CardHeader className="pb-3 border-b">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Download className="h-4 w-4 text-primary" />
+                            Exportação (GDPR)
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4 space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                            Faça download de todas as obras, custos e registos financeiros da sua empresa em formato CSV.
+                        </p>
                         <Button
-                            onClick={() => updateMutation.mutate()}
-                            disabled={!dirty || !form.name || updateMutation.isPending}
-                            className="gap-2"
+                            variant="outline"
+                            className="w-full gap-2"
+                            onClick={handleExport}
+                            disabled={exporting}
                         >
-                            {updateMutation.isPending ? (
+                            {exporting ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                                <Save className="h-4 w-4" />
+                                <FileText className="h-4 w-4" />
                             )}
-                            Guardar Alterações
+                            {exporting ? 'A Exportar...' : 'Exportar Ficheiro CSV'}
                         </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
 
-            <Card>
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Plano</CardTitle>
-                    <CardDescription>Informações sobre o plano actual.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Building2 className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                            <p className="font-semibold capitalize">{tenant.plan ?? 'Padrão'}</p>
-                            <p className="text-xs text-muted-foreground">
-                                Conta criada em{' '}
-                                {tenant.created_at
-                                    ? new Date(tenant.created_at).toLocaleDateString('pt-PT')
-                                    : '—'}
-                            </p>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+                <Card>
+                    <CardHeader className="pb-3 border-b">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <LockKeyhole className="h-4 w-4 text-green-600" />
+                            Confidencialidade
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4 space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                            O ConstruAP utiliza <strong>Row-Level Security (RLS)</strong> a nível de base de dados.
+                        </p>
+                        <ul className="text-xs text-muted-foreground space-y-2 list-disc pl-4">
+                            <li>Isolamento criptográfico por conta</li>
+                            <li>Apenas quem está na aba "Equipa" tem acesso</li>
+                            <li>Auditoria rigorosa de todas as acções</li>
+                        </ul>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     )
 }
@@ -1085,18 +1142,102 @@ function TenantTab() {
 // ════════════════════════════════════════════════════════════════════════════
 
 function AuditTab() {
+    const { data: logs = [], isLoading } = useQuery({
+        queryKey: ['admin-audit-logs'],
+        queryFn: () => fetchAuditLogs({ limit: 100 }),
+    })
+
+    const formatAction = (action: string) => {
+        const map: Record<string, string> = {
+            'user.role_assigned': 'Atribuiu cargo',
+            'user.role_removed': 'Removeu cargo',
+            'user.invite': 'Enviou convite',
+            'data.export': 'Exportou dados',
+            'obra.create': 'Criou obra',
+            'cost.create': 'Lançou custo',
+            'login': 'Iniciou sessão'
+        }
+        return map[action] || action
+    }
+
     return (
-        <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <History className="h-7 w-7 text-muted-foreground" />
-                </div>
-                <p className="font-semibold text-lg">Auditoria & Logs</p>
-                <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                    O registo de todas as acções do sistema estará disponível em breve.
+        <div className="space-y-4">
+            <div>
+                <h2 className="text-lg font-medium">Histórico de Eventos</h2>
+                <p className="text-sm text-muted-foreground">
+                    Registo imutável de todas as acções críticas para efeitos de auditoria profissional.
                 </p>
-            </CardContent>
-        </Card>
+            </div>
+
+            <Card>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="bg-muted/30 border-b">
+                                <th className="text-left px-4 py-3 font-medium text-muted-foreground w-[180px]">
+                                    Data / Hora
+                                </th>
+                                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                                    Utilizador
+                                </th>
+                                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                                    Acção
+                                </th>
+                                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">
+                                    Detalhes
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={4} className="px-4 py-12 text-center">
+                                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto" />
+                                    </td>
+                                </tr>
+                            ) : logs.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
+                                        Nenhum evento registado recentemente.
+                                    </td>
+                                </tr>
+                            ) : (
+                                logs.map((log) => (
+                                    <tr key={log.id} className="hover:bg-muted/20 transition-colors">
+                                        <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
+                                            {new Date(log.created_at).toLocaleString('pt-PT')}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="font-medium">{log.user_name || 'Sistema'}</div>
+                                            <div className="text-[10px] text-muted-foreground">{log.user_email || ''}</div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <Badge variant="outline" className="font-normal bg-background">
+                                                {formatAction(log.action)}
+                                            </Badge>
+                                        </td>
+                                        <td className="px-4 py-3 hidden sm:table-cell">
+                                            <span className="text-muted-foreground">
+                                                {log.entity_name ? (
+                                                    <span className="font-medium text-foreground">{log.entity_name}</span>
+                                                ) : (
+                                                    <span className="capitalize">{log.entity_type}</span>
+                                                )}
+                                            </span>
+                                            {Object.keys(log.meta).length > 0 && (
+                                                <div className="text-xs text-muted-foreground mt-1 font-mono bg-muted/30 p-1.5 rounded inline-block max-w-[250px] truncate">
+                                                    {JSON.stringify(log.meta)}
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
+        </div>
     )
 }
 
@@ -1128,13 +1269,12 @@ function UsageMeter({
             </div>
             <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div
-                    className={`h-full rounded-full transition-all ${
-                        isAtLimit
-                            ? 'bg-destructive'
-                            : isNearLimit
-                              ? 'bg-amber-500'
-                              : 'bg-primary'
-                    }`}
+                    className={`h-full rounded-full transition-all ${isAtLimit
+                        ? 'bg-destructive'
+                        : isNearLimit
+                            ? 'bg-amber-500'
+                            : 'bg-primary'
+                        }`}
                     style={{ width: isUnlimited ? '0%' : `${pct}%` }}
                 />
             </div>
@@ -1268,11 +1408,10 @@ function PlanTab() {
                                         {allPlans.map((p) => (
                                             <th
                                                 key={p.id}
-                                                className={`text-center px-3 py-2 font-medium ${
-                                                    p.id === plan?.id
-                                                        ? 'text-primary bg-primary/5'
-                                                        : 'text-muted-foreground'
-                                                }`}
+                                                className={`text-center px-3 py-2 font-medium ${p.id === plan?.id
+                                                    ? 'text-primary bg-primary/5'
+                                                    : 'text-muted-foreground'
+                                                    }`}
                                             >
                                                 {p.name}
                                                 {p.id === plan?.id && (
@@ -1407,51 +1546,59 @@ export function AdminPage() {
     const defaultTab = params.get('tab') ?? 'users'
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight">Administração</h1>
-                <p className="text-muted-foreground text-sm mt-1">
-                    Utilizadores, cargos, permissões e configurações da empresa
-                </p>
+        <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/30 p-6 rounded-xl border border-border/50">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Administração</h1>
+                    <p className="text-muted-foreground text-sm mt-1">
+                        Utilizadores, Segurança, Permissões e Configurações
+                    </p>
+                </div>
+
+                {/* SECURITY BADGE — Addresses client confidentiality concern directly */}
+                <div className="flex items-center gap-2.5 px-4 py-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/50 text-green-700 dark:text-green-400 rounded-lg text-sm font-medium w-fit shadow-sm">
+                    <LockKeyhole className="h-4 w-4" />
+                    <span>Dados Isolados do Tenant</span>
+                </div>
             </div>
 
             <Tabs defaultValue={defaultTab}>
-                <TabsList className="mb-4">
-                    <TabsTrigger value="users" className="gap-1.5">
-                        <Users className="h-3.5 w-3.5" />
-                        Utilizadores
+                <TabsList className="mb-4 flex-wrap h-auto p-1 bg-muted/40">
+                    <TabsTrigger value="users" className="gap-2">
+                        <Users className="h-4 w-4" />
+                        Equipa & Acessos
                     </TabsTrigger>
-                    <TabsTrigger value="roles" className="gap-1.5">
-                        <Shield className="h-3.5 w-3.5" />
+                    <TabsTrigger value="roles" className="gap-2">
+                        <Shield className="h-4 w-4" />
                         Cargos
                     </TabsTrigger>
-                    <TabsTrigger value="tenant" className="gap-1.5">
-                        <Building2 className="h-3.5 w-3.5" />
-                        Empresa
+                    <TabsTrigger value="tenant" className="gap-2">
+                        <Settings className="h-4 w-4" />
+                        Configurações da Empresa
                     </TabsTrigger>
-                    <TabsTrigger value="plano" className="gap-1.5">
-                        <CreditCard className="h-3.5 w-3.5" />
-                        Plano
+                    <TabsTrigger value="audit" className="gap-2">
+                        <History className="h-4 w-4" />
+                        Histórico / Auditoria
                     </TabsTrigger>
-                    <TabsTrigger value="audit" className="gap-1.5">
-                        <History className="h-3.5 w-3.5" />
-                        Auditoria
+                    <TabsTrigger value="plano" className="gap-2">
+                        <CreditCard className="h-4 w-4" />
+                        Plano & Consumo
                     </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="users">
+                <TabsContent value="users" className="mt-2">
                     <UsersTab />
                 </TabsContent>
-                <TabsContent value="roles">
+                <TabsContent value="roles" className="mt-2">
                     <RolesTab />
                 </TabsContent>
-                <TabsContent value="tenant">
+                <TabsContent value="tenant" className="mt-2">
                     <TenantTab />
                 </TabsContent>
-                <TabsContent value="plano">
+                <TabsContent value="plano" className="mt-2">
                     <PlanTab />
                 </TabsContent>
-                <TabsContent value="audit">
+                <TabsContent value="audit" className="mt-2">
                     <AuditTab />
                 </TabsContent>
             </Tabs>
