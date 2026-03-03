@@ -41,6 +41,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 queryClient.clear()
             }
 
+            // After SIGNED_IN (including after email confirmation link click),
+            // refresh the session so the JWT has the tenant_id set by the DB trigger.
+            if (event === 'SIGNED_IN') {
+                void supabase.auth.refreshSession().then(({ data }) => {
+                    currentUserIdRef.current = data.session?.user?.id
+                    setSession(data.session)
+                })
+                return
+            }
+
             currentUserIdRef.current = newUserId
             setSession(session)
         })

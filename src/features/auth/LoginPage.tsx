@@ -45,6 +45,10 @@ export function LoginPage() {
             return
         }
 
+        // Refresh the session to ensure the JWT contains tenant_id in app_metadata
+        // (set by the handle_new_user trigger after signup)
+        await supabase.auth.refreshSession()
+
         navigate(from, { replace: true })
     }
 
