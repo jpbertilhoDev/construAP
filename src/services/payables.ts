@@ -9,7 +9,10 @@ export type Payable = {
     supplier_id: string | null
     cost_id: string | null
     description: string
-    amount: number
+    amount: number          // valor base sem IVA
+    iva_pct: number         // taxa IVA (default 23)
+    valor_iva: number       // calculado pelo DB
+    total: number           // total com IVA (calculado pelo DB)
     due_date: string
     status: PayableStatus
     notes: string | null
@@ -25,7 +28,8 @@ export type PayableInsert = {
     supplier_id?: string | null
     cost_id?: string | null
     description: string
-    amount: number
+    amount: number          // valor base sem IVA
+    iva_pct?: number        // taxa IVA (default 23.00)
     due_date: string
     status?: PayableStatus
     notes?: string | null

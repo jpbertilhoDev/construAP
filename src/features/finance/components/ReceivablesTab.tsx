@@ -32,6 +32,7 @@ import { usePermissions } from '@/features/auth/usePermissions'
 const receivableSchema = z.object({
     description: z.string().min(3, 'Descrição muito curta'),
     amount: z.coerce.number().min(0.01, 'Valor deve ser superior a 0'),
+    iva_pct: z.coerce.number().min(0).max(100),
     due_date: z.string().min(1, 'Data de vencimento é obrigatória'),
     obra_id: z.string().optional(),
     client_id: z.string().optional(),
@@ -64,18 +65,25 @@ export function ReceivablesTab({ obraId }: { obraId?: string }) {
         register,
         handleSubmit,
         reset,
+        watch,
         formState: { errors },
     } = useForm<ReceivableForm>({
         resolver: zodResolver(receivableSchema) as any,
         defaultValues: {
             description: '',
             amount: 0,
+            iva_pct: 23,
             due_date: '',
             obra_id: obraId || '',
             notes: '',
             client_id: '',
         },
     })
+
+    const watchedAmount = watch('amount')
+    const watchedIva = watch('iva_pct') ?? 23
+    const valorIva = Math.round(Number(watchedAmount) * Number(watchedIva) / 100 * 100) / 100
+    const totalComIva = Number(watchedAmount) + valorIva
 
 
     const onSubmit = async (data: ReceivableForm) => {
@@ -166,7 +174,7 @@ export function ReceivablesTab({ obraId }: { obraId?: string }) {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <Label htmlFor="amount">Valor (€) *</Label>
+                                    <Label htmlFor="amount">Valor base s/ IVA (€) *</Label>
                                     <Input id="amount" type="number" step="0.01" {...register('amount')} />
                                     {errors.amount && <p className="text-xs text-destructive">{errors.amount.message}</p>}
                                 </div>
@@ -174,6 +182,34 @@ export function ReceivablesTab({ obraId }: { obraId?: string }) {
                                     <Label htmlFor="due_date">Data Vencimento *</Label>
                                     <Input id="due_date" type="date" {...register('due_date')} />
                                     {errors.due_date && <p className="text-xs text-destructive">{errors.due_date.message}</p>}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <Label>Taxa IVA (%)</Label>
+                                    <select
+                                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                                        {...register('iva_pct')}
+                                    >
+                                        <option value="23">23% — Taxa Normal</option>
+                                        <option value="13">13% — Taxa Intermedária</option>
+                                        <option value="6">6% — Taxa Reduzida</option>
+                                        <option value="0">0% — Isento</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-muted-foreground">Resumo IVA</Label>
+                                    <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm space-y-1">
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">IVA ({watchedIva}%):</span>
+                                            <span>{valorIva.toFixed(2)} €</span>
+                                        </div>
+                                        <div className="flex justify-between font-semibold border-t pt-1">
+                                            <span>Total c/ IVA:</span>
+                                            <span className="text-primary">{totalComIva.toFixed(2)} €</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -202,7 +238,9 @@ export function ReceivablesTab({ obraId }: { obraId?: string }) {
                             <TableHead>Descrição</TableHead>
                             {!obraId && <TableHead>Obra</TableHead>}
                             <TableHead>Vencimento</TableHead>
-                            <TableHead>Valor</TableHead>
+                            <TableHead className="text-right">Base (€)</TableHead>
+                            <TableHead className="text-right">IVA (€)</TableHead>
+                            <TableHead className="text-right font-semibold">Total c/ IVA (€)</TableHead>
                             <TableHead>Estado</TableHead>
                             {hasPermission('finance.manage') && <TableHead className="w-[80px]"></TableHead>}
                         </TableRow>
@@ -233,8 +271,14 @@ export function ReceivablesTab({ obraId }: { obraId?: string }) {
                                         <TableCell className="text-sm">
                                             {formatDate(receivable.due_date)}
                                         </TableCell>
-                                        <TableCell className="font-semibold text-sm">
+                                        <TableCell className="text-right text-sm text-muted-foreground">
                                             {formatCurrency(receivable.amount)}
+                                        </TableCell>
+                                        <TableCell className="text-right text-xs text-muted-foreground">
+                                            {formatCurrency((receivable as any).valor_iva ?? receivable.amount * 0.23)}
+                                        </TableCell>
+                                        <TableCell className="text-right font-semibold text-sm">
+                                            {formatCurrency((receivable as any).total ?? receivable.amount * 1.23)}
                                         </TableCell>
                                         <TableCell>
                                             {hasPermission('finance.manage') ? (

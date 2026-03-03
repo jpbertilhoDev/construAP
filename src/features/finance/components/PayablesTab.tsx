@@ -42,6 +42,7 @@ const statusMap: Record<string, "default" | "secondary" | "destructive" | "outli
 const payableSchema = z.object({
     description: z.string().min(3, 'Descrição muito curta'),
     amount: z.coerce.number().min(0.01, 'Valor deve ser maior que 0'),
+    iva_pct: z.coerce.number().min(0).max(100),
     due_date: z.string().min(10, 'Data obrigatória'),
     status: z.enum(['Pendente', 'Parcial', 'Pago', 'Cancelado']),
     notes: z.string().optional(),
@@ -132,14 +133,16 @@ export function PayablesTab() {
                             <TableHead>Fornecedor</TableHead>
                             <TableHead>Obra</TableHead>
                             <TableHead>Estado</TableHead>
-                            <TableHead className="text-right w-[140px]">Valor (€)</TableHead>
+                            <TableHead className="text-right">Base (€)</TableHead>
+                            <TableHead className="text-right">IVA (€)</TableHead>
+                            <TableHead className="text-right font-semibold">Total c/ IVA (€)</TableHead>
                             {hasPermission('finance.manage') && <TableHead className="w-[100px]"></TableHead>}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filtered.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                                     {payables.length === 0 ? 'Nenhuma conta a pagar registada.' : 'Nenhum resultado para a pesquisa.'}
                                 </TableCell>
                             </TableRow>
@@ -153,7 +156,9 @@ export function PayablesTab() {
                                     <TableCell>
                                         <Badge variant={statusMap[ap.status] || 'default'}>{ap.status}</Badge>
                                     </TableCell>
-                                    <TableCell className="text-right font-medium">{formatCurrency(ap.amount)}</TableCell>
+                                    <TableCell className="text-right text-muted-foreground">{formatCurrency(ap.amount)}</TableCell>
+                                    <TableCell className="text-right text-muted-foreground text-xs">{formatCurrency(ap.valor_iva ?? ap.amount * 0.23)}</TableCell>
+                                    <TableCell className="text-right font-semibold">{formatCurrency(ap.total ?? ap.amount * 1.23)}</TableCell>
                                     {hasPermission('finance.manage') && (
                                         <TableCell>
                                             <div className="flex items-center justify-end gap-1">
@@ -234,6 +239,7 @@ function AddPayableForm({ onSuccess }: { onSuccess: () => void }) {
         defaultValues: {
             description: '',
             amount: 0,
+            iva_pct: 23,
             due_date: new Date().toISOString().substring(0, 10),
             status: 'Pendente',
             notes: '',
@@ -242,11 +248,17 @@ function AddPayableForm({ onSuccess }: { onSuccess: () => void }) {
         },
     })
 
+    const watchedAmount = form.watch('amount')
+    const watchedIva = form.watch('iva_pct')
+    const valorIva = Math.round((Number(watchedAmount) * Number(watchedIva)) / 100 * 100) / 100
+    const totalComIva = Number(watchedAmount) + valorIva
+
     const handleSubmit = async (values: PayableFormValues) => {
         try {
             await createPayable({
                 description: values.description,
                 amount: values.amount,
+                iva_pct: values.iva_pct ?? 23,
                 due_date: values.due_date,
                 status: values.status,
                 notes: values.notes,
@@ -271,11 +283,42 @@ function AddPayableForm({ onSuccess }: { onSuccess: () => void }) {
                     )}
                 </div>
                 <div className="space-y-2">
-                    <label className="text-sm font-medium">Valor Total (€)</label>
+                    <label className="text-sm font-medium">Valor Base s/ IVA (€)</label>
                     <Input type="number" step="0.01" {...form.register('amount')} />
                     {form.formState.errors.amount && (
                         <p className="text-xs text-destructive">{form.formState.errors.amount.message}</p>
                     )}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Taxa IVA (%)</label>
+                    <Select
+                        onValueChange={(val) => form.setValue('iva_pct', Number(val))}
+                        defaultValue="23"
+                    >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="23">23% — Taxa Normal</SelectItem>
+                            <SelectItem value="13">13% — Taxa Intermedária</SelectItem>
+                            <SelectItem value="6">6% — Taxa Reduzida</SelectItem>
+                            <SelectItem value="0">0% — Isento</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Resumo IVA</label>
+                    <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm space-y-1">
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">IVA ({watchedIva}%):</span>
+                            <span>{valorIva.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between font-semibold border-t pt-1">
+                            <span>Total c/ IVA:</span>
+                            <span className="text-primary">{totalComIva.toFixed(2)} €</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
