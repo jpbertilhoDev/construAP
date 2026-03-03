@@ -511,30 +511,39 @@ function InviteUserModal({
                         </div>
 
                         {/* Role – MANDATORY */}
-                        <div className="space-y-1.5">
-                            <Label htmlFor="new-user-role">
-                                Cargo *{' '}
-                                <span className="text-xs font-normal text-muted-foreground">(define o que este utilizador pode ver)</span>
+                        <div className="space-y-3 pt-2">
+                            <Label>
+                                Perfil de Acesso *{' '}
+                                <span className="text-xs font-normal text-muted-foreground">
+                                    (Escolha o nível de acesso à plataforma)
+                                </span>
                             </Label>
-                            <select
-                                id="new-user-role"
-                                className={`w-full border rounded-md px-3 py-2 text-sm bg-background ${!roleId ? 'text-muted-foreground' : ''
-                                    }`}
-                                value={roleId}
-                                onChange={(e) => setRoleId(e.target.value)}
-                            >
-                                <option value="">Selecionar cargo obrigatório...</option>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {roles.map((r) => (
-                                    <option key={r.id} value={r.id}>
-                                        {r.name}{r.is_system_default ? ' (padrão)' : ''}
-                                    </option>
+                                    <div
+                                        key={r.id}
+                                        onClick={() => setRoleId(r.id)}
+                                        className={`relative flex flex-col items-start p-4 cursor-pointer rounded-xl border-2 transition-all duration-200 ${roleId === r.id
+                                                ? 'border-primary bg-primary/5 shadow-sm'
+                                                : 'border-border/50 bg-card hover:bg-accent/50 hover:border-border'
+                                            }`}
+                                    >
+                                        <div className="flex items-center justify-between w-full mb-1">
+                                            <span className="font-semibold text-sm text-foreground">
+                                                {r.name}
+                                            </span>
+                                            {roleId === r.id && (
+                                                <div className="h-4 w-4 rounded-full bg-primary flex items-center justify-center shrink-0">
+                                                    <Check className="h-2.5 w-2.5 text-primary-foreground stroke-[3]" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-1 pr-4 leading-relaxed line-clamp-2">
+                                            {r.description || 'Acesso condicionado às permissões definidas pelo administrador.'}
+                                        </p>
+                                    </div>
                                 ))}
-                            </select>
-                            {selectedRole?.description && (
-                                <p className="text-xs text-muted-foreground pl-1">
-                                    {selectedRole.description}
-                                </p>
-                            )}
+                            </div>
                         </div>
 
                         {/* Error */}
@@ -1607,8 +1616,8 @@ export function AdminPage() {
                                     key={item.id}
                                     onClick={() => setTab(item.id)}
                                     className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${activeTab === item.id
-                                            ? 'bg-primary/10 text-primary font-semibold shadow-sm ring-1 ring-primary/20'
-                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground font-medium'
+                                        ? 'bg-primary/10 text-primary font-semibold shadow-sm ring-1 ring-primary/20'
+                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground font-medium'
                                         }`}
                                 >
                                     <item.icon className="h-4 w-4" />
@@ -1629,8 +1638,8 @@ export function AdminPage() {
                                     key={item.id}
                                     onClick={() => setTab(item.id)}
                                     className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${activeTab === item.id
-                                            ? 'bg-primary/10 text-primary font-semibold shadow-sm ring-1 ring-primary/20'
-                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground font-medium'
+                                        ? 'bg-primary/10 text-primary font-semibold shadow-sm ring-1 ring-primary/20'
+                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground font-medium'
                                         }`}
                                 >
                                     <item.icon className="h-4 w-4" />
