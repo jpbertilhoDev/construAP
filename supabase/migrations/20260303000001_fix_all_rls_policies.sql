@@ -199,9 +199,7 @@ DROP POLICY IF EXISTS "ar_update_gestor" ON public.accounts_receivable;
 DROP POLICY IF EXISTS "ar_delete_gestor" ON public.accounts_receivable;
 DROP POLICY IF EXISTS "tx_delete_admin"  ON public.financial_transactions;
 
--- ── PEDIDOS_COMPRA / autos_medicao INSERT policies ────────────────────────────
-DROP POLICY IF EXISTS "pedidos_insert_compras" ON public.pedidos_compra;
-DROP POLICY IF EXISTS "autos_insert_gestor"    ON public.autos_medicao;
+-- ── PEDIDOS_COMPRA / autos_medicao INSERT policies (tabelas opcionais) ────────
 
 DO $$
 BEGIN
