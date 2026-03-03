@@ -1541,67 +1541,111 @@ function PlanTab() {
 // ════════════════════════════════════════════════════════════════════════════
 
 export function AdminPage() {
-    // Support deep-linking to tabs via ?tab= query param (e.g. from UpgradeBanner)
+    // Support deep-linking to tabs via ?tab= query param
     const params = new URLSearchParams(window.location.search)
-    const defaultTab = params.get('tab') ?? 'users'
+    const initialTab = params.get('tab') ?? 'tenant'
+    const [activeTab, setActiveTab] = useState(initialTab)
+
+    // Ensure state updates push history state so URL updates locally optionally
+    const setTab = (tab: string) => {
+        setActiveTab(tab)
+        const newUrl = new URL(window.location.href)
+        newUrl.searchParams.set('tab', tab)
+        window.history.replaceState({}, '', newUrl)
+    }
+
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'users': return <UsersTab />
+            case 'roles': return <RolesTab />
+            case 'tenant': return <TenantTab />
+            case 'audit': return <AuditTab />
+            case 'plano': return <PlanTab />
+            default: return <TenantTab />
+        }
+    }
+
+    const navItems = [
+        { id: 'tenant', label: 'Dados da Empresa', icon: Building2, group: 'Conta & Faturação' },
+        { id: 'plano', label: 'O seu Plano', icon: CreditCard, group: 'Conta & Faturação' },
+        { id: 'users', label: 'Equipa & Membros', icon: Users, group: 'Segurança & Acessos' },
+        { id: 'roles', label: 'Cargos e Permissões', icon: Shield, group: 'Segurança & Acessos' },
+        { id: 'audit', label: 'Auditoria de Sistema', icon: History, group: 'Segurança & Acessos' },
+    ]
 
     return (
-        <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/30 p-6 rounded-xl border border-border/50">
+        <div className="space-y-8 animate-fade-in max-w-7xl mx-auto pb-10">
+            {/* Cabeçalho */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-6 rounded-xl border shadow-sm">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Administração</h1>
                     <p className="text-muted-foreground text-sm mt-1">
-                        Utilizadores, Segurança, Permissões e Configurações
+                        Gerencie a sua empresa, acessos de segurança e faturação global.
                     </p>
                 </div>
 
-                {/* SECURITY BADGE — Addresses client confidentiality concern directly */}
-                <div className="flex items-center gap-2.5 px-4 py-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/50 text-green-700 dark:text-green-400 rounded-lg text-sm font-medium w-fit shadow-sm">
+                {/* SECURITY BADGE */}
+                <div className="flex items-center gap-2.5 px-3 py-2 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800/60 text-green-700 dark:text-green-400 rounded-lg text-sm font-medium shadow-sm w-fit">
                     <LockKeyhole className="h-4 w-4" />
-                    <span>Dados Isolados do Tenant</span>
+                    <span>Dados Isolados do Tenant (RLS)</span>
                 </div>
             </div>
 
-            <Tabs defaultValue={defaultTab}>
-                <TabsList className="mb-4 flex-wrap h-auto p-1 bg-muted/40">
-                    <TabsTrigger value="users" className="gap-2">
-                        <Users className="h-4 w-4" />
-                        Equipa & Acessos
-                    </TabsTrigger>
-                    <TabsTrigger value="roles" className="gap-2">
-                        <Shield className="h-4 w-4" />
-                        Cargos
-                    </TabsTrigger>
-                    <TabsTrigger value="tenant" className="gap-2">
-                        <Settings className="h-4 w-4" />
-                        Configurações da Empresa
-                    </TabsTrigger>
-                    <TabsTrigger value="audit" className="gap-2">
-                        <History className="h-4 w-4" />
-                        Histórico / Auditoria
-                    </TabsTrigger>
-                    <TabsTrigger value="plano" className="gap-2">
-                        <CreditCard className="h-4 w-4" />
-                        Plano & Consumo
-                    </TabsTrigger>
-                </TabsList>
+            {/* Layout Grid: Sidebar + Main Content */}
+            <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-8 items-start">
 
-                <TabsContent value="users" className="mt-2">
-                    <UsersTab />
-                </TabsContent>
-                <TabsContent value="roles" className="mt-2">
-                    <RolesTab />
-                </TabsContent>
-                <TabsContent value="tenant" className="mt-2">
-                    <TenantTab />
-                </TabsContent>
-                <TabsContent value="plano" className="mt-2">
-                    <PlanTab />
-                </TabsContent>
-                <TabsContent value="audit" className="mt-2">
-                    <AuditTab />
-                </TabsContent>
-            </Tabs>
+                {/* Navegação Lateral (Sidebar) */}
+                <nav className="flex flex-col gap-8 sticky top-6">
+                    {/* Grupo: Conta & Faturação */}
+                    <div className="space-y-3">
+                        <h4 className="text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground px-2">
+                            Conta & Faturação
+                        </h4>
+                        <div className="flex flex-col gap-1">
+                            {navItems.filter(i => i.group === 'Conta & Faturação').map(item => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setTab(item.id)}
+                                    className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${activeTab === item.id
+                                            ? 'bg-primary/10 text-primary font-semibold shadow-sm ring-1 ring-primary/20'
+                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground font-medium'
+                                        }`}
+                                >
+                                    <item.icon className="h-4 w-4" />
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Grupo: Segurança & Acessos */}
+                    <div className="space-y-3">
+                        <h4 className="text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground px-2">
+                            Segurança & Acessos
+                        </h4>
+                        <div className="flex flex-col gap-1">
+                            {navItems.filter(i => i.group === 'Segurança & Acessos').map(item => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setTab(item.id)}
+                                    className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${activeTab === item.id
+                                            ? 'bg-primary/10 text-primary font-semibold shadow-sm ring-1 ring-primary/20'
+                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground font-medium'
+                                        }`}
+                                >
+                                    <item.icon className="h-4 w-4" />
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </nav>
+
+                {/* Conteúdo Principal (Right Side) */}
+                <div className="min-w-0 bg-transparent md:bg-card rounded-xl md:p-6 md:border md:shadow-sm">
+                    {renderContent()}
+                </div>
+            </div>
         </div>
     )
 }
