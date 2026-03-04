@@ -25,6 +25,7 @@ import { ReceivablesTab } from '@/features/finance/components/ReceivablesTab'
 import { DocumentsTab } from '@/features/obras/components/DocumentsTab'
 import { AllocationsTab } from '@/features/obras/components/AllocationsTab'
 import { QCTab } from '@/features/obras/components/QCTab'
+import { CommentsTab } from '@/features/obras/components/CommentsTab'
 import { formatDate, formatCurrency } from '@/lib/utils'
 
 
@@ -46,6 +47,7 @@ const TABS = [
     { id: 'tarefas', label: 'Tarefas' },
     { id: 'documentos', label: 'Documentos' },
     { id: 'qc', label: 'Qualidade (QC)' },
+    { id: 'chat', label: 'Chat & Notas' },
 ] as const
 
 type Tab = (typeof TABS)[number]['id']
@@ -373,6 +375,7 @@ export function ObraDetailPage() {
                     {activeTab === 'tarefas' && <TasksTab obraId={obra.id} />}
                     {activeTab === 'documentos' && <DocumentsTab obraId={obra.id} />}
                     {activeTab === 'qc' && <QCTab obraId={obra.id} />}
+                    {activeTab === 'chat' && <CommentsTab obraId={obra.id} />}
 
                 </div>
             </div>
