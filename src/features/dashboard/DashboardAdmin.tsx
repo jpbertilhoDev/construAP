@@ -18,6 +18,9 @@ import { useTimesheets } from '@/features/rh/hooks/useEmployees'
 import { usePurchaseOrders } from '@/features/compras/hooks/useCompras'
 import { usePayables } from '@/features/finance/hooks/usePayables'
 import { useReceivables } from '@/features/finance/hooks/useReceivables'
+import { useQuery } from '@tanstack/react-query'
+import { fetchCashflow } from '@/services/cashflow'
+import { DashboardCharts } from './components/DashboardCharts'
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -41,6 +44,7 @@ function isPast(dateStr: string): boolean {
 export function DashboardAdmin() {
     const { data: obras = [], isLoading: isLoadingObras } = useObras()
     const { data: financials = [] } = useAllObraFinancials()
+    const { data: cashflowTx = [] } = useQuery({ queryKey: ['cashflow'], queryFn: fetchCashflow, staleTime: 60_000 })
 
     // Pending data sources
     const { data: pendingTimesheets = [] } = useTimesheets({ estado: 'Submetido' })
@@ -55,6 +59,7 @@ export function DashboardAdmin() {
     const activeFinancials = financials.filter(f => activeObraIds.has(f.obra_id))
     const totalBudgeted = activeFinancials.reduce((sum, f) => sum + (f.total_budgeted || 0), 0)
     const totalCosts = activeFinancials.reduce((sum, f) => sum + (f.total_costs || 0), 0)
+
 
     // ── Pending items ───────────────────────────────────────
     const overduePayables = allPayables.filter(
@@ -309,6 +314,13 @@ export function DashboardAdmin() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* ── Charts Section ────────────────────────────── */}
+            <DashboardCharts
+                obras={obras}
+                financials={financials}
+                transactions={cashflowTx}
+            />
         </div>
     )
 }

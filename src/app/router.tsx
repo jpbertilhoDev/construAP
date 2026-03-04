@@ -102,6 +102,9 @@ const PlatformTenantsPage = lazy(() =>
 const PlatformTenantDetailPage = lazy(() =>
     import('@/features/platform/PlatformTenantDetailPage').then((m) => ({ default: m.PlatformTenantDetailPage })),
 )
+const MinhaAreaPage = lazy(() =>
+    import('@/features/minha-area/MinhaAreaPage').then((m) => ({ default: m.MinhaAreaPage })),
+)
 
 
 function PageLoader() {
@@ -143,6 +146,14 @@ const router = createBrowserRouter([
                 element: (
                     <Suspense fallback={<PageLoader />}>
                         <DashboardPage />
+                    </Suspense>
+                ),
+            },
+            {
+                path: 'minha-area',
+                element: (
+                    <Suspense fallback={<PageLoader />}>
+                        <MinhaAreaPage />
                     </Suspense>
                 ),
             },
