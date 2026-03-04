@@ -70,10 +70,16 @@ export function BudgetTab({ obraId }: { obraId: string }) {
     const [deleteItemId, setDeleteItemId] = useState<string | null>(null)
     const [deleteChapterId, setDeleteChapterId] = useState<string | null>(null)
 
+    // Used to pre-select a chapter when clicking '+ Rubrica' inside a chapter's table
+    const [prefilledChapterId, setPrefilledChapterId] = useState<string | undefined>(undefined)
+
     // Modals reset handlers
     const handleItemOpenChange = (open: boolean) => {
         setIsItemDialogOpen(open)
-        if (!open) setEditingItem(null)
+        if (!open) {
+            setEditingItem(null)
+            setPrefilledChapterId(undefined)
+        }
     }
 
     const handleChapterOpenChange = (open: boolean) => {
@@ -167,7 +173,7 @@ export function BudgetTab({ obraId }: { obraId: string }) {
                         <Dialog open={isChapterDialogOpen} onOpenChange={handleChapterOpenChange}>
                             <DialogTrigger asChild>
                                 <Button size="sm" variant="outline" onClick={() => setEditingChapter(null)}>
-                                    <FolderPlus className="h-4 w-4 mr-2" /> Capítulo
+                                    <FolderPlus className="h-4 w-4 mr-2" /> Novo Capítulo
                                 </Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-[425px]">
@@ -189,42 +195,25 @@ export function BudgetTab({ obraId }: { obraId: string }) {
                                 />
                             </DialogContent>
                         </Dialog>
-
-                        {/* Nova Rubrica */}
-                        <Dialog open={isItemDialogOpen} onOpenChange={handleItemOpenChange}>
-                            <DialogTrigger asChild>
-                                <Button size="sm" onClick={() => setEditingItem(null)}>
-                                    <Plus className="h-4 w-4 mr-2" /> Rubrica
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[500px]">
-                                <DialogHeader>
-                                    <DialogTitle>{editingItem ? 'Editar Rubrica' : 'Adicionar Rubrica'}</DialogTitle>
-                                    <DialogDescription>Adicione um novo item de custo ao orçamento.</DialogDescription>
-                                </DialogHeader>
-                                <AddItemForm
-                                    budgetId={budget.id}
-                                    chapters={budget.chapters}
-                                    initialData={editingItem || undefined}
-                                    onSuccess={() => handleItemOpenChange(false)}
-                                    onSubmit={(payload) => editingItem
-                                        ? updateItemMutation.mutateAsync({ id: editingItem.id, payload })
-                                        : addItemMutation.mutateAsync(payload)
-                                    }
-                                    isPending={addItemMutation.isPending || updateItemMutation.isPending}
-                                />
-                            </DialogContent>
-                        </Dialog>
                     </div>
                 )}
             </CardHeader>
             <CardContent>
                 {/* Caso o orçamento esteja totalmente vazio */}
                 {budget.chapters.length === 0 && budget.uncategorizedItems.length === 0 ? (
-                    <div className="py-12 text-center border rounded-md bg-muted/20 border-dashed">
-                        <FolderOpen className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-                        <p className="font-semibold">Orçamento Vazio</p>
-                        <p className="text-muted-foreground text-sm max-w-sm mx-auto mt-1">Comece por criar o primeiro Capítulo e adicione rubricas lá dentro.</p>
+                    <div className="py-20 flex flex-col items-center justify-center border rounded-md bg-muted/20 border-dashed">
+                        <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                            <FolderOpen className="h-8 w-8 text-primary" />
+                        </div>
+                        <h2 className="text-xl font-bold mb-2">Construa o seu orçamento</h2>
+                        <p className="text-muted-foreground text-center max-w-sm mb-8">
+                            Para começar a orçamentar esta obra de forma estruturada, crie o seu primeiro Capítulo (ex: "Trabalhos Preparatórios").
+                        </p>
+                        {canEdit && (
+                            <Button size="lg" onClick={() => { setEditingChapter(null); setIsChapterDialogOpen(true) }}>
+                                <FolderPlus className="h-5 w-5 mr-2" /> Criar Primeiro Capítulo
+                            </Button>
+                        )}
                     </div>
                 ) : (
                     <div className="space-y-6">
@@ -256,8 +245,23 @@ export function BudgetTab({ obraId }: { obraId: string }) {
                                     </div>
 
                                     {chapter.items.length === 0 ? (
-                                        <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                                            Capítulo vazio.
+                                        <div className="px-4 py-8 flex items-center justify-center text-sm">
+                                            {canEdit ? (
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    className="text-muted-foreground"
+                                                    onClick={() => {
+                                                        setEditingItem(null)
+                                                        setPrefilledChapterId(chapter.id)
+                                                        setIsItemDialogOpen(true)
+                                                    }}
+                                                >
+                                                    <Plus className="h-4 w-4 mr-2" /> Adicionar a primeira rubrica a este capítulo
+                                                </Button>
+                                            ) : (
+                                                <span className="text-muted-foreground py-2">Capítulo vazio.</span>
+                                            )}
                                         </div>
                                     ) : (
                                         <Table className="text-sm">
@@ -295,6 +299,24 @@ export function BudgetTab({ obraId }: { obraId: string }) {
                                                 ))}
                                             </TableBody>
                                         </Table>
+                                    )}
+
+                                    {/* Adicionar Rubrica Contextual */}
+                                    {canEdit && chapter.items.length > 0 && (
+                                        <div className="px-4 py-3 bg-muted/5 border-t flex justify-end">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-primary hover:text-primary hover:bg-primary/10 h-8 text-xs font-semibold"
+                                                onClick={() => {
+                                                    setEditingItem(null)
+                                                    setPrefilledChapterId(chapter.id)
+                                                    setIsItemDialogOpen(true)
+                                                }}
+                                            >
+                                                <Plus className="h-3.5 w-3.5 mr-1" /> Nova Rubrica
+                                            </Button>
+                                        </div>
                                     )}
                                 </div>
                             )
@@ -351,6 +373,28 @@ export function BudgetTab({ obraId }: { obraId: string }) {
                         )}
                     </div>
                 )}
+
+                {/* Unified Item Modal used by all chapters */}
+                <Dialog open={isItemDialogOpen} onOpenChange={handleItemOpenChange}>
+                    <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle>{editingItem ? 'Editar Rubrica' : 'Adicionar Rubrica'}</DialogTitle>
+                            <DialogDescription>Adicione um novo item de custo ao orçamento.</DialogDescription>
+                        </DialogHeader>
+                        <AddItemForm
+                            budgetId={budget.id}
+                            chapters={budget.chapters}
+                            prefilledChapterId={prefilledChapterId}
+                            initialData={editingItem || undefined}
+                            onSuccess={() => handleItemOpenChange(false)}
+                            onSubmit={(payload) => editingItem
+                                ? updateItemMutation.mutateAsync({ id: editingItem.id, payload })
+                                : addItemMutation.mutateAsync(payload)
+                            }
+                            isPending={addItemMutation.isPending || updateItemMutation.isPending}
+                        />
+                    </DialogContent>
+                </Dialog>
 
                 {/* Confirm Delete Modals */}
                 <AlertDialog open={!!deleteItemId} onOpenChange={(open) => !open && setDeleteItemId(null)}>
@@ -437,6 +481,7 @@ function AddChapterForm({
 function AddItemForm({
     budgetId,
     chapters,
+    prefilledChapterId,
     initialData,
     onSuccess,
     onSubmit,
@@ -444,6 +489,7 @@ function AddItemForm({
 }: {
     budgetId: string;
     chapters: BudgetChapter[];
+    prefilledChapterId?: string;
     initialData?: BudgetItem;
     onSuccess: () => void;
     onSubmit: (payload: any) => Promise<any>;
@@ -453,7 +499,7 @@ function AddItemForm({
         resolver: zodResolver(budgetItemSchema),
         defaultValues: {
             description: initialData?.description || '',
-            chapter_id: initialData?.chapter_id || 'unassigned',
+            chapter_id: initialData?.chapter_id || prefilledChapterId || 'unassigned',
             unit: initialData?.unit || 'vg',
             qty: initialData?.qty || 1,
             unit_price: initialData?.unit_price || 0,
@@ -469,8 +515,10 @@ function AddItemForm({
                 qty: initialData.qty,
                 unit_price: initialData.unit_price,
             })
+        } else if (prefilledChapterId) {
+            form.setValue('chapter_id', prefilledChapterId)
         }
-    }, [initialData, form])
+    }, [initialData, prefilledChapterId, form])
 
     const handleSubmit = async (values: BudgetItemFormValues) => {
         try {
