@@ -10,6 +10,7 @@ export type PermissionKey =
     | 'finance.view' | 'finance.manage'
     | 'rh.view' | 'rh.manage'
     | 'compras.view' | 'compras.manage'
+    | 'clientes.view' | 'clientes.manage'
     | 'relatorios.view'
     | 'admin.view' | 'admin.manage'
 
@@ -55,6 +56,7 @@ async function fetchMyPermissions(): Promise<Set<PermissionKey>> {
             'finance.view', 'finance.manage',
             'rh.view', 'rh.manage',
             'compras.view', 'compras.manage',
+            'clientes.view', 'clientes.manage',
             'relatorios.view', 'admin.view', 'admin.manage',
         ])
         return new Set()
