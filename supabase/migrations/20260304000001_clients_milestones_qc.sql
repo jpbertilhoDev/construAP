@@ -146,6 +146,15 @@ CREATE POLICY "qc_nc_tenant_isolation"
 
 -- ─── 6. UPDATED_AT TRIGGERS ──────────────────────────────────────────────────
 
+-- Ensure the handle_updated_at function exists
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Reuse existing trigger function if available
 DO $$
 BEGIN
