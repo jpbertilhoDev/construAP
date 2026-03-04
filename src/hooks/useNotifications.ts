@@ -124,7 +124,7 @@ async function fetchNotifications(): Promise<AppNotification[]> {
         .from('timesheets')
         .select('id, data, created_at, employees(nome)')
         .eq('tenant_id', tid)
-        .eq('status', 'Submetido')
+        .eq('estado', 'Submetido')
         .order('created_at', { ascending: false })
         .limit(5)
 
