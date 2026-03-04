@@ -1,4 +1,4 @@
-import { Building2, Wallet, ArrowRight } from 'lucide-react'
+import { Building2, Wallet, ArrowRight, BarChart2, Receipt, Clock } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,34 @@ const reports = [
         path: '/relatorios/obras',
         color: 'text-blue-500',
         bg: 'bg-blue-500/10'
-    }
+    },
+    {
+        id: 'rentabilidade',
+        title: 'Rentabilidade por Obra',
+        description: 'Margem sobre vendas por obra — semáforo verde/amarelo/vermelho. Identifique imediatamente obras em prejuízo.',
+        icon: BarChart2,
+        path: '/relatorios/rentabilidade',
+        color: 'text-purple-500',
+        bg: 'bg-purple-500/10'
+    },
+    {
+        id: 'iva',
+        title: 'Resumo IVA Mensal',
+        description: 'IVA suportado em compras, agrupado por mês e taxa (6%, 13%, 23%). Auxiliar para declaração AT.',
+        icon: Receipt,
+        path: '/relatorios/iva',
+        color: 'text-amber-500',
+        bg: 'bg-amber-500/10'
+    },
+    {
+        id: 'horas-cliente',
+        title: 'Horas por Obra',
+        description: 'Apontamentos aprovados agrupados por obra e funcionário — para faturação de mão-de-obra a clientes.',
+        icon: Clock,
+        path: '/relatorios/horas',
+        color: 'text-cyan-500',
+        bg: 'bg-cyan-500/10'
+    },
 ]
 
 export function RelatoriosPage() {

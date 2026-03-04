@@ -20,6 +20,8 @@ import {
     Clock,
     Receipt,
     Hammer,
+    Users2,
+    CalendarDays,
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { usePermissions, type PermissionKey } from '@/features/auth/usePermissions'
@@ -46,6 +48,8 @@ interface NavItem {
 const navItems: NavItem[] = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', permission: 'dashboard.view' },
     { to: '/obras', icon: HardHat, label: 'Obras', permission: 'obras.view' },
+    { to: '/agenda', icon: CalendarDays, label: 'Agenda', permission: 'obras.view' },
+    { to: '/clientes', icon: Users2, label: 'Clientes', permission: 'clientes.view' },
     { to: '/finance', icon: Wallet, label: 'Financeiro', permission: 'finance.view' },
     { to: '/rh', icon: Users, label: 'RH', permission: 'rh.view' },
     { to: '/compras', icon: ShoppingCart, label: 'Compras', permission: 'compras.view' },

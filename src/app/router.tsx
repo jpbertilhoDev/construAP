@@ -105,6 +105,24 @@ const PlatformTenantDetailPage = lazy(() =>
 const MinhaAreaPage = lazy(() =>
     import('@/features/minha-area/MinhaAreaPage').then((m) => ({ default: m.MinhaAreaPage })),
 )
+const ClientesListPage = lazy(() =>
+    import('@/features/clientes/ClientesListPage').then((m) => ({ default: m.ClientesListPage })),
+)
+const ClienteDetailPage = lazy(() =>
+    import('@/features/clientes/ClienteDetailPage').then((m) => ({ default: m.ClienteDetailPage })),
+)
+const AgendaPage = lazy(() =>
+    import('@/features/agenda/AgendaPage').then((m) => ({ default: m.AgendaPage })),
+)
+const ReportRentabilidadePage = lazy(() =>
+    import('@/features/relatorios/executar/ReportRentabilidadePage').then((m) => ({ default: m.ReportRentabilidadePage })),
+)
+const ReportIVAPage = lazy(() =>
+    import('@/features/relatorios/executar/ReportIVAPage').then((m) => ({ default: m.ReportIVAPage })),
+)
+const ReportHorasClientePage = lazy(() =>
+    import('@/features/relatorios/executar/ReportHorasClientePage').then((m) => ({ default: m.ReportHorasClientePage })),
+)
 
 
 function PageLoader() {
@@ -154,6 +172,30 @@ const router = createBrowserRouter([
                 element: (
                     <Suspense fallback={<PageLoader />}>
                         <MinhaAreaPage />
+                    </Suspense>
+                ),
+            },
+            {
+                path: 'clientes',
+                element: (
+                    <Suspense fallback={<PageLoader />}>
+                        <ClientesListPage />
+                    </Suspense>
+                ),
+            },
+            {
+                path: 'clientes/:id',
+                element: (
+                    <Suspense fallback={<PageLoader />}>
+                        <ClienteDetailPage />
+                    </Suspense>
+                ),
+            },
+            {
+                path: 'agenda',
+                element: (
+                    <Suspense fallback={<PageLoader />}>
+                        <AgendaPage />
                     </Suspense>
                 ),
             },
@@ -217,6 +259,18 @@ const router = createBrowserRouter([
                     {
                         path: 'equipas',
                         element: (<RequirePermission permission="relatorios.view"><Suspense fallback={<PageLoader />}><ReportTimesheetPage /></Suspense></RequirePermission>),
+                    },
+                    {
+                        path: 'rentabilidade',
+                        element: (<RequirePermission permission="relatorios.view"><Suspense fallback={<PageLoader />}><ReportRentabilidadePage /></Suspense></RequirePermission>),
+                    },
+                    {
+                        path: 'iva',
+                        element: (<RequirePermission permission="relatorios.view"><Suspense fallback={<PageLoader />}><ReportIVAPage /></Suspense></RequirePermission>),
+                    },
+                    {
+                        path: 'horas',
+                        element: (<RequirePermission permission="relatorios.view"><Suspense fallback={<PageLoader />}><ReportHorasClientePage /></Suspense></RequirePermission>),
                     }
                 ]
             },
