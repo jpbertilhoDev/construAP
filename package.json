@@ -47,6 +47,7 @@
     "i18next": "^25.8.11",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
+    "localforage": "^1.10.0",
     "lucide-react": "^0.575.0",
     "pg": "^8.18.0",
     "react": "^19.2.0",

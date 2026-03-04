@@ -14,6 +14,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import { toast } from 'sonner'
+import { offlineSync } from '@/lib/offlineSync'
 import type { DiarioEntry } from '@/services/diario'
 
 // ── Constants ───────────────────────────────────────────────
@@ -157,23 +159,38 @@ export function DiarioEntryForm({
             }
         }
 
+        const payloadData = {
+            obra_id: obraId,
+            entry_date: values.entry_date,
+            work_shift: values.work_shift,
+            weather: values.weather,
+            temp_min: values.temp_min,
+            temp_max: values.temp_max,
+            workers_by_category: workersByCategory,
+            equipment_used: values.equipment.filter((e) => e.name),
+            structured_activities: values.structured_activities.filter(
+                (a) => a.description,
+            ),
+            activities: values.activities,
+            progress_pct: values.progress_pct,
+            notes: values.notes,
+        }
+
+        if (!navigator.onLine && !isEditing) {
+            // Guardar em cache se estiver offline e for novo
+            try {
+                await offlineSync.addToQueue('SYNC_DIARIO_OBRA', payloadData)
+                toast.success('Offline: Registo guardado para sincronizar mais tarde.', { duration: 6000 })
+                form.reset()
+                onSuccess()
+            } catch (err: any) {
+                toast.error('Erro ao guardar offline: ' + err.message)
+            }
+            return
+        }
+
         try {
-            await onSubmit({
-                obra_id: obraId,
-                entry_date: values.entry_date,
-                work_shift: values.work_shift,
-                weather: values.weather,
-                temp_min: values.temp_min,
-                temp_max: values.temp_max,
-                workers_by_category: workersByCategory,
-                equipment_used: values.equipment.filter((e) => e.name),
-                structured_activities: values.structured_activities.filter(
-                    (a) => a.description,
-                ),
-                activities: values.activities,
-                progress_pct: values.progress_pct,
-                notes: values.notes,
-            })
+            await onSubmit(payloadData)
             form.reset()
             onSuccess()
         } catch {

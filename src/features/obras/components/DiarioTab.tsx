@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, Loader2, BookOpen, LayoutList, Clock } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Plus, Loader2, BookOpen, LayoutList, Clock, WifiOff, UploadCloud } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
     Card,
@@ -39,6 +39,7 @@ import { DiarioEntryForm } from './DiarioEntryForm'
 import { DiarioTimeline } from './DiarioTimeline'
 import { DiarioExportDialog } from './DiarioExportDialog'
 import { formatDate } from '@/lib/utils'
+import { offlineSync, type OfflineAction } from '@/lib/offlineSync'
 import type { DiarioEntry } from '@/services/diario'
 
 type ViewMode = 'timeline' | 'tabela'
@@ -56,6 +57,32 @@ export function DiarioTab({ obraId, obraName }: { obraId: string; obraName: stri
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [editingEntry, setEditingEntry] = useState<DiarioEntry | null>(null)
     const [deleteId, setDeleteId] = useState<string | null>(null)
+    const [offlineQueue, setOfflineQueue] = useState<OfflineAction[]>([])
+
+    // Sync offline queue checker
+    useEffect(() => {
+        const checkQueue = async () => {
+            const queue = await offlineSync.getQueue()
+            // filter for this obra
+            const pending = queue.filter(q =>
+                q.status === 'pending' &&
+                q.type === 'SYNC_DIARIO_OBRA' &&
+                (q.payload as any).obra_id === obraId
+            )
+            setOfflineQueue(pending)
+        }
+
+        checkQueue()
+        window.addEventListener('online', checkQueue)
+
+        // Polling as a fallback to detect queue changes
+        const interval = setInterval(checkQueue, 5000)
+
+        return () => {
+            window.removeEventListener('online', checkQueue)
+            clearInterval(interval)
+        }
+    }, [obraId])
 
     const handleOpenChange = (open: boolean) => {
         setIsDialogOpen(open)
@@ -105,22 +132,20 @@ export function DiarioTab({ obraId, obraName }: { obraId: string; obraName: stri
                     {/* View toggle */}
                     <div className="flex rounded-md border overflow-hidden">
                         <button
-                            className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                                view === 'timeline'
+                            className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${view === 'timeline'
                                     ? 'bg-primary text-primary-foreground'
                                     : 'bg-background hover:bg-muted'
-                            }`}
+                                }`}
                             onClick={() => { setView('timeline') }}
                         >
                             <Clock className="h-3.5 w-3.5 inline mr-1" />
                             Timeline
                         </button>
                         <button
-                            className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                                view === 'tabela'
+                            className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${view === 'tabela'
                                     ? 'bg-primary text-primary-foreground'
                                     : 'bg-background hover:bg-muted'
-                            }`}
+                                }`}
                             onClick={() => { setView('tabela') }}
                         >
                             <LayoutList className="h-3.5 w-3.5 inline mr-1" />
@@ -148,7 +173,35 @@ export function DiarioTab({ obraId, obraName }: { obraId: string; obraName: stri
             </CardHeader>
 
             <CardContent>
-                {entries.length === 0 ? (
+                {/* Offline Warning Banner */}
+                {offlineQueue.length > 0 && (
+                    <div className="mb-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-2 text-amber-800 dark:text-amber-400">
+                            <WifiOff className="h-5 w-5 mt-0.5 shrink-0" />
+                            <div>
+                                <p className="text-sm font-semibold">Modo Offline ({offlineQueue.length} {offlineQueue.length === 1 ? 'registo pendente' : 'registos pendentes'})</p>
+                                <p className="text-xs opacity-90">
+                                    Os relatórios que fez sem internet não foram enviados. Serão sincronizados automaticamente pela aplicação assim que houver rede.
+                                </p>
+                            </div>
+                        </div>
+                        {navigator.onLine && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-amber-400 bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200"
+                                onClick={async () => {
+                                    await offlineSync.syncAll()
+                                    window.location.reload()
+                                }}
+                            >
+                                <UploadCloud className="h-4 w-4 mr-2" /> Forçar Sincronização
+                            </Button>
+                        )}
+                    </div>
+                )}
+
+                {entries.length === 0 && offlineQueue.length === 0 ? (
                     <div className="py-12 flex flex-col items-center justify-center text-center border rounded-md bg-muted/20 border-dashed">
                         <BookOpen className="h-8 w-8 text-muted-foreground mb-3" />
                         <p className="font-medium">O Diário de Obra está vazio.</p>
@@ -267,16 +320,16 @@ function DiarioTableView({
                     {entries.map((entry) => {
                         const totalWorkers = Object.keys(entry.workers_by_category).length > 0
                             ? Object.values(entry.workers_by_category).reduce(
-                                  (s, n) => s + n,
-                                  0,
-                              )
+                                (s, n) => s + n,
+                                0,
+                            )
                             : entry.resources_count
 
                         const activitySummary =
                             entry.structured_activities.length > 0
                                 ? entry.structured_activities
-                                      .map((a) => a.description)
-                                      .join('; ')
+                                    .map((a) => a.description)
+                                    .join('; ')
                                 : entry.activities || ''
 
                         return (
