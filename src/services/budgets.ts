@@ -29,8 +29,23 @@ export type BudgetItem = {
     updated_at: string
 }
 
-export type BudgetWithItems = Budget & {
+export type BudgetChapter = {
+    id: string
+    budget_id: string
+    tenant_id: string
+    name: string
+    sort_order: number
+    created_at: string
+    updated_at: string
+}
+
+export type BudgetChapterWithItems = BudgetChapter & {
     items: BudgetItem[]
+}
+
+export type BudgetWithChapters = Budget & {
+    chapters: BudgetChapterWithItems[]
+    uncategorizedItems: BudgetItem[] // Items without a chapter
 }
 
 export type BudgetItemInsert = {
@@ -45,7 +60,7 @@ export type BudgetItemInsert = {
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
-export async function fetchBudget(obraId: string): Promise<BudgetWithItems | null> {
+export async function fetchBudget(obraId: string): Promise<BudgetWithChapters | null> {
     const { data: budgetData, error: budgetError } = await supabase
         .from('budgets')
         .select('*')
@@ -63,7 +78,18 @@ export async function fetchBudget(obraId: string): Promise<BudgetWithItems | nul
 
     if (!budget) return null
 
-    const { data: items, error: itemsError } = await supabase
+    // Fetch chapters
+    const { data: chaptersData, error: chaptersError } = await (supabase as any)
+        .from('budget_chapters')
+        .select('*')
+        .eq('budget_id', budget.id)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
+
+    if (chaptersError) throw new Error(chaptersError.message)
+
+    // Fetch items
+    const { data: itemsData, error: itemsError } = await (supabase as any)
         .from('budget_items')
         .select('*')
         .eq('budget_id', budget.id)
@@ -72,15 +98,26 @@ export async function fetchBudget(obraId: string): Promise<BudgetWithItems | nul
 
     if (itemsError) throw new Error(itemsError.message)
 
+    const chapters = (chaptersData as unknown as BudgetChapter[]) ?? []
+    const items = (itemsData as unknown as BudgetItem[]) ?? []
+
+    const chaptersWithItems: BudgetChapterWithItems[] = chapters.map(ch => ({
+        ...ch,
+        items: items.filter(i => i.chapter_id === ch.id)
+    }))
+
+    const uncategorizedItems = items.filter(i => !i.chapter_id)
+
     return {
         ...budget,
-        items: (items as unknown as BudgetItem[]) ?? [],
+        chapters: chaptersWithItems,
+        uncategorizedItems,
     }
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
-export async function createBudget(obraId: string): Promise<BudgetWithItems> {
+export async function createBudget(obraId: string): Promise<BudgetWithChapters> {
     const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id, tenant_id')
@@ -121,8 +158,50 @@ export async function createBudget(obraId: string): Promise<BudgetWithItems> {
     const newBudget = insertedData as any
     return {
         ...(newBudget as Budget),
-        items: [],
+        chapters: [],
+        uncategorizedItems: []
     }
+}
+
+// ─── Chapters CRUD ────────────────────────────────────────────────────────────
+
+export async function createBudgetChapter(budgetId: string, name: string): Promise<BudgetChapter> {
+    const { data: profile } = await supabase.from('profiles').select('tenant_id').single()
+    if (!profile) throw new Error('Perfil não encontrado')
+
+    const { data, error } = await (supabase as any)
+        .from('budget_chapters')
+        .insert({
+            budget_id: budgetId,
+            tenant_id: (profile as any).tenant_id,
+            name,
+        })
+        .select()
+        .single()
+
+    if (error) throw new Error(error.message)
+    return data as any as BudgetChapter
+}
+
+export async function updateBudgetChapter(id: string, name: string): Promise<BudgetChapter> {
+    const { data, error } = await (supabase as any)
+        .from('budget_chapters')
+        .update({ name, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single()
+
+    if (error) throw new Error(error.message)
+    return data as any as BudgetChapter
+}
+
+export async function deleteBudgetChapter(id: string): Promise<void> {
+    const { error } = await (supabase as any)
+        .from('budget_chapters')
+        .delete()
+        .eq('id', id)
+
+    if (error) throw new Error(error.message)
 }
 
 export async function addBudgetItem(payload: BudgetItemInsert): Promise<BudgetItem> {
@@ -137,12 +216,12 @@ export async function addBudgetItem(payload: BudgetItemInsert): Promise<BudgetIt
         throw new Error('Perfil não encontrado')
     }
 
-    const { data: insertedData, error } = await supabase
+    const { data: insertedData, error } = await (supabase as any)
         .from('budget_items')
         .insert({
             ...payload,
             tenant_id: profile.tenant_id,
-        } as any)
+        })
         .select()
         .single()
 
@@ -151,9 +230,9 @@ export async function addBudgetItem(payload: BudgetItemInsert): Promise<BudgetIt
 }
 
 export async function updateBudgetItem(id: string, payload: Partial<BudgetItemInsert>): Promise<BudgetItem> {
-    const { data: updatedData, error } = await supabase
+    const { data: updatedData, error } = await (supabase as any)
         .from('budget_items')
-        .update({ ...payload, updated_at: new Date().toISOString() } as unknown as never)
+        .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
         .single()
@@ -163,7 +242,7 @@ export async function updateBudgetItem(id: string, payload: Partial<BudgetItemIn
 }
 
 export async function deleteBudgetItem(id: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
         .from('budget_items')
         .delete()
         .eq('id', id)

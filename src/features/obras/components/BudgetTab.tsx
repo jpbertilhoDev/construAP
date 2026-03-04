@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Plus, Trash2, FileText, Loader2 } from 'lucide-react'
+import { Plus, Trash2, FileText, Loader2, Edit2, FolderPlus, FolderOpen } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
-
 import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,20 +18,36 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useBudget, useCreateBudget, useAddBudgetItem, useUpdateBudgetItem, useDeleteBudgetItem } from '../hooks/useBudgets'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+    useBudget,
+    useCreateBudget,
+    useAddBudgetItem,
+    useUpdateBudgetItem,
+    useDeleteBudgetItem,
+    useCreateBudgetChapter,
+    useUpdateBudgetChapter,
+    useDeleteBudgetChapter
+} from '../hooks/useBudgets'
 import { formatCurrency } from '@/lib/utils'
-import { Edit2 } from 'lucide-react'
-import type { BudgetItem } from '@/services/budgets'
+import type { BudgetItem, BudgetChapter } from '@/services/budgets'
 import { usePermissions } from '@/features/auth/usePermissions'
+import { useForm as useHookForm } from 'react-hook-form'
+import { useEffect } from 'react'
 
 const budgetItemSchema = z.object({
     description: z.string().min(2, 'Descrição obrigatória'),
+    chapter_id: z.string().optional(),
     unit: z.string().min(1, 'Unidade obrigatória'),
     qty: z.coerce.number().min(0.01, 'Quantidade deve ser > 0'),
     unit_price: z.coerce.number().min(0.01, 'Preço deve ser > 0'),
 })
 
 type BudgetItemFormValues = z.infer<typeof budgetItemSchema>
+
+const chapterSchema = z.object({
+    name: z.string().min(2, 'Nome obrigatório')
+})
 
 export function BudgetTab({ obraId }: { obraId: string }) {
     const { hasPermission } = usePermissions()
@@ -41,30 +56,56 @@ export function BudgetTab({ obraId }: { obraId: string }) {
     const addItemMutation = useAddBudgetItem()
     const updateItemMutation = useUpdateBudgetItem()
     const deleteItemMutation = useDeleteBudgetItem()
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
-    const [deleteId, setDeleteId] = useState<string | null>(null)
 
-    const handleOpenChange = (open: boolean) => {
-        setIsDialogOpen(open)
+    const createChapterMutation = useCreateBudgetChapter()
+    const updateChapterMutation = useUpdateBudgetChapter()
+    const deleteChapterMutation = useDeleteBudgetChapter()
+
+    const [isItemDialogOpen, setIsItemDialogOpen] = useState(false)
+    const [isChapterDialogOpen, setIsChapterDialogOpen] = useState(false)
+
+    const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
+    const [editingChapter, setEditingChapter] = useState<BudgetChapter | null>(null)
+
+    const [deleteItemId, setDeleteItemId] = useState<string | null>(null)
+    const [deleteChapterId, setDeleteChapterId] = useState<string | null>(null)
+
+    // Modals reset handlers
+    const handleItemOpenChange = (open: boolean) => {
+        setIsItemDialogOpen(open)
         if (!open) setEditingItem(null)
     }
 
-    const handleEdit = (item: BudgetItem) => {
-        setEditingItem(item)
-        setIsDialogOpen(true)
+    const handleChapterOpenChange = (open: boolean) => {
+        setIsChapterDialogOpen(open)
+        if (!open) setEditingChapter(null)
     }
 
-    const handleDelete = async () => {
-        if (deleteId) {
-            await deleteItemMutation.mutateAsync(deleteId)
-            setDeleteId(null)
+    // Edit Triggers
+    const handleEditItem = (item: BudgetItem) => {
+        setEditingItem(item)
+        setIsItemDialogOpen(true)
+    }
+
+    const handleEditChapter = (chapter: BudgetChapter) => {
+        setEditingChapter(chapter)
+        setIsChapterDialogOpen(true)
+    }
+
+    // Delete Handlers
+    const handleDeleteItemConfirm = async () => {
+        if (deleteItemId) {
+            await deleteItemMutation.mutateAsync(deleteItemId)
+            setDeleteItemId(null)
         }
     }
 
-    // O React Hook Form está comentado mal aqui pq não importamos corretamente. 
-    // O correto seria: react-hook-form
-    // Mas vamos corrigir no import
+    const handleDeleteChapterConfirm = async () => {
+        if (deleteChapterId) {
+            await deleteChapterMutation.mutateAsync(deleteChapterId)
+            setDeleteChapterId(null)
+        }
+    }
 
     if (isLoading) {
         return <div className="py-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -101,131 +142,249 @@ export function BudgetTab({ obraId }: { obraId: string }) {
         )
     }
 
-    const sortedItems = [...budget.items].sort((a, b) => {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    })
+    // Calcular totais
+    const grandTotal =
+        budget.chapters.reduce((sum, ch) => sum + ch.items.reduce((s, i) => s + (i.total || 0), 0), 0) +
+        budget.uncategorizedItems.reduce((s, i) => s + (i.total || 0), 0)
 
-    const total = sortedItems.reduce((acc, item) => acc + (item.total || 0), 0)
+    const canEdit = hasPermission('obras.manage')
 
     return (
         <Card className="mt-4">
-            <CardHeader className="flex flex-row items-start justify-between">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
                     <div className="flex items-center gap-3">
                         <CardTitle className="text-lg">Orçamento da Obra</CardTitle>
                         <Badge variant="outline">v{budget.version}</Badge>
                         <Badge variant={budget.status === 'Rascunho' ? 'warning' : 'success'}>{budget.status}</Badge>
                     </div>
-                    <CardDescription>Gerencie as rubricas e os valores orçamentados.</CardDescription>
+                    <CardDescription>Estrutura de custos orçamentados detalhada por capítulos.</CardDescription>
                 </div>
-                <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
-                    {hasPermission('obras.manage') && (
-                        <DialogTrigger asChild>
-                            <Button size="sm" onClick={() => setEditingItem(null)}>
-                                <Plus className="h-4 w-4" /> Nova Rubrica
-                            </Button>
-                        </DialogTrigger>
-                    )}
-                    <DialogContent className="sm:max-w-[425px]">
-                        <DialogHeader>
-                            <DialogTitle>{editingItem ? 'Editar Rubrica' : 'Adicionar Rubrica'}</DialogTitle>
-                            <DialogDescription>
-                                {editingItem ? 'Altere os valores desta rubrica.' : 'Adicione um novo item ao orçamento. O total será calculado automaticamente.'}
-                            </DialogDescription>
-                        </DialogHeader>
-                        <AddItemForm
-                            budgetId={budget.id}
-                            initialData={editingItem || undefined}
-                            onSuccess={() => handleOpenChange(false)}
-                            onSubmit={(payload) => editingItem
-                                ? updateItemMutation.mutateAsync({ id: editingItem.id, payload })
-                                : addItemMutation.mutateAsync(payload)
-                            }
-                            isPending={addItemMutation.isPending || updateItemMutation.isPending}
-                        />
-                    </DialogContent>
-                </Dialog>
+
+                {canEdit && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {/* Novo Capítulo */}
+                        <Dialog open={isChapterDialogOpen} onOpenChange={handleChapterOpenChange}>
+                            <DialogTrigger asChild>
+                                <Button size="sm" variant="outline" onClick={() => setEditingChapter(null)}>
+                                    <FolderPlus className="h-4 w-4 mr-2" /> Capítulo
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px]">
+                                <DialogHeader>
+                                    <DialogTitle>{editingChapter ? 'Editar Capítulo' : 'Novo Capítulo'}</DialogTitle>
+                                    <DialogDescription>
+                                        Os capítulos (ex: "Alvenarias") agrupam diferentes rubricas para melhor análise de custos.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <AddChapterForm
+                                    budgetId={budget.id}
+                                    initialData={editingChapter || undefined}
+                                    onSuccess={() => handleChapterOpenChange(false)}
+                                    onSubmit={(payload) => editingChapter
+                                        ? updateChapterMutation.mutateAsync({ id: editingChapter.id, name: payload.name })
+                                        : createChapterMutation.mutateAsync({ budgetId: budget.id, name: payload.name })
+                                    }
+                                    isPending={createChapterMutation.isPending || updateChapterMutation.isPending}
+                                />
+                            </DialogContent>
+                        </Dialog>
+
+                        {/* Nova Rubrica */}
+                        <Dialog open={isItemDialogOpen} onOpenChange={handleItemOpenChange}>
+                            <DialogTrigger asChild>
+                                <Button size="sm" onClick={() => setEditingItem(null)}>
+                                    <Plus className="h-4 w-4 mr-2" /> Rubrica
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[500px]">
+                                <DialogHeader>
+                                    <DialogTitle>{editingItem ? 'Editar Rubrica' : 'Adicionar Rubrica'}</DialogTitle>
+                                    <DialogDescription>Adicione um novo item de custo ao orçamento.</DialogDescription>
+                                </DialogHeader>
+                                <AddItemForm
+                                    budgetId={budget.id}
+                                    chapters={budget.chapters}
+                                    initialData={editingItem || undefined}
+                                    onSuccess={() => handleItemOpenChange(false)}
+                                    onSubmit={(payload) => editingItem
+                                        ? updateItemMutation.mutateAsync({ id: editingItem.id, payload })
+                                        : addItemMutation.mutateAsync(payload)
+                                    }
+                                    isPending={addItemMutation.isPending || updateItemMutation.isPending}
+                                />
+                            </DialogContent>
+                        </Dialog>
+                    </div>
+                )}
             </CardHeader>
             <CardContent>
-                {sortedItems.length === 0 ? (
+                {/* Caso o orçamento esteja totalmente vazio */}
+                {budget.chapters.length === 0 && budget.uncategorizedItems.length === 0 ? (
                     <div className="py-12 text-center border rounded-md bg-muted/20 border-dashed">
-                        <p className="text-muted-foreground text-sm">Orçamento vazio. Adicione a primeira rubrica.</p>
+                        <FolderOpen className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                        <p className="font-semibold">Orçamento Vazio</p>
+                        <p className="text-muted-foreground text-sm max-w-sm mx-auto mt-1">Comece por criar o primeiro Capítulo e adicione rubricas lá dentro.</p>
                     </div>
                 ) : (
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader className="bg-muted/50">
-                                <TableRow>
-                                    <TableHead>Descrição</TableHead>
-                                    <TableHead className="text-center w-[100px]">Unid.</TableHead>
-                                    <TableHead className="text-right w-[120px]">Qtd</TableHead>
-                                    <TableHead className="text-right w-[140px]">P.U. (€)</TableHead>
-                                    <TableHead className="text-right w-[140px]">Total (€)</TableHead>
-                                    {hasPermission('obras.manage') && <TableHead className="w-[60px]"></TableHead>}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {sortedItems.map((item) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell className="font-medium">{item.description}</TableCell>
-                                        <TableCell className="text-center">{item.unit}</TableCell>
-                                        <TableCell className="text-right">{item.qty}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
-                                        <TableCell className="text-right font-medium">{formatCurrency(item.total)}</TableCell>
-                                        {hasPermission('obras.manage') && (
-                                            <TableCell>
-                                                <div className="flex justify-end gap-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                        onClick={() => handleEdit(item)}
-                                                    >
-                                                        <Edit2 className="h-3.5 w-3.5" />
+                    <div className="space-y-6">
+
+                        {/* Iterar sobre os Capítulos */}
+                        {budget.chapters.map((chapter) => {
+                            const subtotal = chapter.items.reduce((s, i) => s + (i.total || 0), 0)
+
+                            return (
+                                <div key={chapter.id} className="rounded-lg border bg-card text-card-foreground shadow-sm overflow-hidden">
+                                    <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-b">
+                                        <div className="flex items-center gap-2">
+                                            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                                            <h3 className="font-semibold text-sm">{chapter.name}</h3>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <span className="text-sm font-medium">{formatCurrency(subtotal)}</span>
+                                            {canEdit && (
+                                                <div className="flex items-center">
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditChapter(chapter)}>
+                                                        <Edit2 className="h-3 w-3" />
                                                     </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                        onClick={() => setDeleteId(item.id)}
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => setDeleteChapterId(chapter.id)}>
+                                                        <Trash2 className="h-3 w-3" />
                                                     </Button>
                                                 </div>
-                                            </TableCell>
-                                        )}
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {chapter.items.length === 0 ? (
+                                        <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                                            Capítulo vazio.
+                                        </div>
+                                    ) : (
+                                        <Table className="text-sm">
+                                            <TableHeader>
+                                                <TableRow className="hover:bg-transparent">
+                                                    <TableHead className="py-2 h-9">Descrição</TableHead>
+                                                    <TableHead className="py-2 h-9 text-center w-[80px]">Unid.</TableHead>
+                                                    <TableHead className="py-2 h-9 text-right w-[100px]">Qtd</TableHead>
+                                                    <TableHead className="py-2 h-9 text-right w-[120px]">P.U. (€)</TableHead>
+                                                    <TableHead className="py-2 h-9 text-right w-[120px]">Total (€)</TableHead>
+                                                    {canEdit && <TableHead className="w-[60px]"></TableHead>}
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {chapter.items.map((item) => (
+                                                    <TableRow key={item.id} className="border-b-0 border-t">
+                                                        <TableCell className="font-medium py-2">{item.description}</TableCell>
+                                                        <TableCell className="text-center py-2">{item.unit}</TableCell>
+                                                        <TableCell className="text-right py-2">{item.qty}</TableCell>
+                                                        <TableCell className="text-right py-2">{formatCurrency(item.unit_price)}</TableCell>
+                                                        <TableCell className="text-right font-medium py-2">{formatCurrency(item.total)}</TableCell>
+                                                        {canEdit && (
+                                                            <TableCell className="py-1">
+                                                                <div className="flex justify-end gap-1">
+                                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditItem(item)}>
+                                                                        <Edit2 className="h-3 w-3" />
+                                                                    </Button>
+                                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteItemId(item.id)}>
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </Button>
+                                                                </div>
+                                                            </TableCell>
+                                                        )}
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    )}
+                                </div>
+                            )
+                        })}
+
+                        {/* Rubricas Sem Capítulo */}
+                        {budget.uncategorizedItems.length > 0 && (
+                            <div className="rounded-lg border bg-card text-card-foreground shadow-sm overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-3 bg-muted/10 border-b">
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                        <FileText className="h-4 w-4" />
+                                        <h3 className="font-semibold text-sm">Rubricas Soltas (Sem Capítulo)</h3>
+                                    </div>
+                                    <span className="text-sm font-medium">
+                                        {formatCurrency(budget.uncategorizedItems.reduce((s, i) => s + (i.total || 0), 0))}
+                                    </span>
+                                </div>
+                                <Table className="text-sm">
+                                    <TableHeader>
+                                        <TableRow className="hover:bg-transparent">
+                                            <TableHead className="py-2 h-9">Descrição</TableHead>
+                                            <TableHead className="py-2 h-9 text-center w-[80px]">Unid.</TableHead>
+                                            <TableHead className="py-2 h-9 text-right w-[100px]">Qtd</TableHead>
+                                            <TableHead className="py-2 h-9 text-right w-[120px]">P.U. (€)</TableHead>
+                                            <TableHead className="py-2 h-9 text-right w-[120px]">Total (€)</TableHead>
+                                            {canEdit && <TableHead className="w-[60px]"></TableHead>}
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {budget.uncategorizedItems.map((item) => (
+                                            <TableRow key={item.id} className="border-b-0 border-t">
+                                                <TableCell className="font-medium py-2">{item.description}</TableCell>
+                                                <TableCell className="text-center py-2">{item.unit}</TableCell>
+                                                <TableCell className="text-right py-2">{item.qty}</TableCell>
+                                                <TableCell className="text-right py-2">{formatCurrency(item.unit_price)}</TableCell>
+                                                <TableCell className="text-right font-medium py-2">{formatCurrency(item.total)}</TableCell>
+                                                {canEdit && (
+                                                    <TableCell className="py-1">
+                                                        <div className="flex justify-end gap-1">
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditItem(item)}>
+                                                                <Edit2 className="h-3 w-3" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteItemId(item.id)}>
+                                                                <Trash2 className="h-3 w-3" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                )}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        )}
                     </div>
                 )}
 
-                <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+                {/* Confirm Delete Modals */}
+                <AlertDialog open={!!deleteItemId} onOpenChange={(open) => !open && setDeleteItemId(null)}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
                             <AlertDialogTitle>Remover Rubrica</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Tem a certeza que deseja eliminar esta rubrica do orçamento? O valor total será recalculado.
-                            </AlertDialogDescription>
+                            <AlertDialogDescription>Tem a certeza que deseja eliminar esta rubrica? O valor total será recalculado.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                onClick={() => void handleDelete()}
-                            >
-                                Remover Rubrica
-                            </AlertDialogAction>
+                            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void handleDeleteItemConfirm()}>Remover</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
 
-                {sortedItems.length > 0 && (
+                <AlertDialog open={!!deleteChapterId} onOpenChange={(open) => !open && setDeleteChapterId(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Apagar Capítulo</AlertDialogTitle>
+                            <AlertDialogDescription>De certeza que deseja apagar este Capítulo? <br /><strong>Aviso:</strong> Todas as rubricas lá dentro serão apagadas também.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void handleDeleteChapterConfirm()}>Apagar Tudo</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                {/* Grand Total Footer */}
+                {(budget.chapters.length > 0 || budget.uncategorizedItems.length > 0) && (
                     <div className="mt-6 flex justify-end">
-                        <div className="rounded-lg bg-muted px-6 py-4 flex items-center gap-6">
-                            <span className="text-sm font-medium text-muted-foreground">Total Orçado</span>
-                            <span className="text-2xl font-bold tracking-tight">{formatCurrency(total)}</span>
+                        <div className="rounded-lg bg-primary/5 border border-primary/20 px-8 py-4 flex items-center gap-6">
+                            <span className="text-sm font-semibold text-primary/80 uppercase tracking-wider">Total Orçado</span>
+                            <span className="text-3xl font-bold tracking-tight text-primary">{formatCurrency(grandTotal)}</span>
                         </div>
                     </div>
                 )}
@@ -234,28 +393,67 @@ export function BudgetTab({ obraId }: { obraId: string }) {
     )
 }
 
-// Separate component for the form to use `useForm` cleanly
-import { useForm as useHookForm } from 'react-hook-form'
-import { useEffect } from 'react'
+// ─── Forms ──────────────────────────────────────────────────
 
-function AddItemForm({
-    budgetId,
+function AddChapterForm({
     initialData,
     onSuccess,
     onSubmit,
     isPending,
 }: {
     budgetId: string;
+    initialData?: BudgetChapter;
+    onSuccess: () => void;
+    onSubmit: (payload: { name: string }) => Promise<any>;
+    isPending: boolean;
+}) {
+    const form = useHookForm<{ name: string }>({
+        resolver: zodResolver(chapterSchema),
+        defaultValues: { name: initialData?.name || '' },
+    })
+
+    const handleSubmit = async (values: { name: string }) => {
+        try {
+            await onSubmit(values)
+            form.reset()
+            onSuccess()
+        } catch { }
+    }
+
+    return (
+        <form onSubmit={(e) => void form.handleSubmit(handleSubmit)(e)} className="space-y-4 pt-4">
+            <div className="space-y-2">
+                <label className="text-sm font-medium">Nome do Capítulo</label>
+                <Input {...form.register('name')} placeholder="Ex: Trabalhos Preparatórios" autoFocus />
+                {form.formState.errors.name && <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>}
+            </div>
+            <Button type="submit" className="w-full" disabled={isPending}>
+                {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : initialData ? 'Guardar' : 'Adicionar'}
+            </Button>
+        </form>
+    )
+}
+
+function AddItemForm({
+    budgetId,
+    chapters,
+    initialData,
+    onSuccess,
+    onSubmit,
+    isPending,
+}: {
+    budgetId: string;
+    chapters: BudgetChapter[];
     initialData?: BudgetItem;
     onSuccess: () => void;
     onSubmit: (payload: any) => Promise<any>;
     isPending: boolean;
 }) {
-    const form = useHookForm<BudgetItemFormValues>({
-        resolver: zodResolver(budgetItemSchema) as any,
-
+    const form = useHookForm<any>({
+        resolver: zodResolver(budgetItemSchema),
         defaultValues: {
             description: initialData?.description || '',
+            chapter_id: initialData?.chapter_id || 'unassigned',
             unit: initialData?.unit || 'vg',
             qty: initialData?.qty || 1,
             unit_price: initialData?.unit_price || 0,
@@ -266,6 +464,7 @@ function AddItemForm({
         if (initialData) {
             form.reset({
                 description: initialData.description,
+                chapter_id: initialData.chapter_id || 'unassigned',
                 unit: initialData.unit,
                 qty: initialData.qty,
                 unit_price: initialData.unit_price,
@@ -277,6 +476,7 @@ function AddItemForm({
         try {
             await onSubmit({
                 budget_id: budgetId,
+                chapter_id: values.chapter_id === 'unassigned' ? null : values.chapter_id,
                 description: values.description,
                 unit: values.unit,
                 qty: values.qty,
@@ -284,45 +484,53 @@ function AddItemForm({
             })
             form.reset()
             onSuccess()
-        } catch {
-            // Error is handled by mutation globally or can be set here
-        }
+        } catch { }
     }
 
     return (
-        <form onSubmit={(e) => void form.handleSubmit(handleSubmit as any)(e)} className="space-y-4 pt-4">
+        <form onSubmit={(e) => void form.handleSubmit(handleSubmit)(e)} className="space-y-4 pt-4">
+
+            <div className="space-y-2">
+                <label className="text-sm font-medium">Capítulo</label>
+                <Select
+                    onValueChange={(val) => form.setValue('chapter_id', val)}
+                    value={form.watch('chapter_id')}
+                >
+                    <SelectTrigger>
+                        <SelectValue placeholder="Selecione um capítulo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="unassigned">Nenhum Capítulo (Rubrica Solta)</SelectItem>
+                        {chapters.map(ch => (
+                            <SelectItem key={ch.id} value={ch.id}>{ch.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
 
             <div className="space-y-2">
                 <label className="text-sm font-medium">Descrição</label>
                 <Input {...form.register('description')} placeholder="Ex: Betão Armado" />
-                {form.formState.errors.description && (
-                    <p className="text-xs text-destructive">{form.formState.errors.description.message}</p>
-                )}
+                {form.formState.errors.description && <p className="text-xs text-destructive">{form.formState.errors.description.message as string}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Unidade</label>
                     <Input {...form.register('unit')} placeholder="m2, un, vg..." />
-                    {form.formState.errors.unit && (
-                        <p className="text-xs text-destructive">{form.formState.errors.unit.message}</p>
-                    )}
+                    {form.formState.errors.unit && <p className="text-xs text-destructive">{form.formState.errors.unit.message as string}</p>}
                 </div>
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Quantidade</label>
                     <Input type="number" step="0.01" {...form.register('qty')} />
-                    {form.formState.errors.qty && (
-                        <p className="text-xs text-destructive">{form.formState.errors.qty.message}</p>
-                    )}
+                    {form.formState.errors.qty && <p className="text-xs text-destructive">{form.formState.errors.qty.message as string}</p>}
                 </div>
             </div>
 
             <div className="space-y-2">
                 <label className="text-sm font-medium">Preço Unitário (€)</label>
                 <Input type="number" step="0.01" {...form.register('unit_price')} />
-                {form.formState.errors.unit_price && (
-                    <p className="text-xs text-destructive">{form.formState.errors.unit_price.message}</p>
-                )}
+                {form.formState.errors.unit_price && <p className="text-xs text-destructive">{form.formState.errors.unit_price.message as string}</p>}
             </div>
 
             <Button type="submit" className="w-full" disabled={isPending}>

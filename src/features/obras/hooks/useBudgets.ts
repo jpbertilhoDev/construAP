@@ -5,6 +5,9 @@ import {
     addBudgetItem,
     updateBudgetItem,
     deleteBudgetItem,
+    createBudgetChapter,
+    updateBudgetChapter,
+    deleteBudgetChapter,
     type BudgetItemInsert,
 } from '@/services/budgets'
 
@@ -53,6 +56,40 @@ export function useDeleteBudgetItem() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: deleteBudgetItem,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['budgets'] })
+        },
+    })
+}
+
+// ─── Chapter Hooks ─────────────────────────────────────────────────────────
+
+export function useCreateBudgetChapter() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: ({ budgetId, name }: { budgetId: string; name: string }) =>
+            createBudgetChapter(budgetId, name),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['budgets'] })
+        },
+    })
+}
+
+export function useUpdateBudgetChapter() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: ({ id, name }: { id: string; name: string }) =>
+            updateBudgetChapter(id, name),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['budgets'] })
+        },
+    })
+}
+
+export function useDeleteBudgetChapter() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: deleteBudgetChapter,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['budgets'] })
         },

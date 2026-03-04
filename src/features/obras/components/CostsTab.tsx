@@ -278,7 +278,9 @@ function AddCostForm({
 
     const { data: suppliers } = useSuppliers()
     const { data: budget } = useBudget(obraId)
-    const budgetItems = budget?.items || []
+    const budgetItems = budget
+        ? [...budget.chapters.flatMap(ch => ch.items), ...budget.uncategorizedItems]
+        : []
 
 
 
