@@ -57,31 +57,63 @@ const TYPE_COLORS: Record<string, string> = {
     'Inspeção': 'text-amber-600 bg-amber-50 dark:bg-amber-950/30',
 }
 
-// ── Add Milestone Modal ────────────────────────────────────────────────────────
+import { updateMilestone } from '@/services/agenda' // Add to existing imports
 
-function AddMilestoneModal({ open, onClose, defaultDate }: { open: boolean; onClose: () => void; defaultDate?: string }) {
+// ── Milestone Modal ────────────────────────────────────────────────────────
+
+function MilestoneModal({
+    open,
+    onClose,
+    defaultDate,
+    milestone,
+}: {
+    open: boolean
+    onClose: () => void
+    defaultDate?: string
+    milestone?: Milestone
+}) {
     const qc = useQueryClient()
     const { data: obras = [] } = useQuery({ queryKey: ['obras'], queryFn: fetchObras, staleTime: 60_000 })
+
+    // Default values if creating new vs editing
     const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm({
-        defaultValues: { obra_id: '', title: '', date: defaultDate ?? '', type: 'Marco' },
+        defaultValues: {
+            obra_id: milestone?.obra_id ?? '',
+            title: milestone?.title ?? '',
+            date: milestone?.date ?? defaultDate ?? '',
+            type: milestone?.type ?? 'Marco',
+        },
     })
 
     const mutation = useMutation({
-        mutationFn: (data: { obra_id: string; title: string; date: string; type: string }) =>
-            createMilestone(data),
+        mutationFn: (data: { obra_id: string; title: string; date: string; type: string }) => {
+            if (milestone) {
+                return updateMilestone(milestone.id, data)
+            }
+            return createMilestone(data)
+        },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['agenda-milestones'] })
-            toast.success('Marco adicionado!')
+            toast.success(milestone ? 'Marco atualizado!' : 'Marco adicionado!')
             reset()
             onClose()
         },
         onError: (err: Error) => toast.error(err.message),
     })
 
+    const deleteMutation = useMutation({
+        mutationFn: deleteMilestone,
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['agenda-milestones'] })
+            toast.success('Marco removido.')
+            onClose()
+        },
+    })
+
     return (
         <Dialog open={open} onOpenChange={o => { if (!o) onClose() }}>
             <DialogContent className="max-w-sm w-[95vw]">
-                <DialogHeader><DialogTitle>Adicionar Marco</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{milestone ? 'Editar Marco' : 'Adicionar Marco'}</DialogTitle></DialogHeader>
                 <form onSubmit={handleSubmit(d => mutation.mutate(d))} className="space-y-4 pt-2">
                     <div className="space-y-1.5">
                         <Label>Data *</Label>
@@ -110,12 +142,27 @@ function AddMilestoneModal({ open, onClose, defaultDate }: { open: boolean; onCl
                         <Label>Título / Descrição *</Label>
                         <Input {...register('title', { required: true })} placeholder="Ex. Betonagem fundações" />
                     </div>
-                    <div className="flex gap-2 justify-end">
-                        <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-                        <Button type="submit" disabled={isSubmitting || mutation.isPending}>
-                            {(isSubmitting || mutation.isPending) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                            Adicionar
-                        </Button>
+                    <div className="flex gap-2 justify-between mt-4 border-t pt-4">
+                        <div>
+                            {milestone && (
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon"
+                                    onClick={() => deleteMutation.mutate(milestone.id)}
+                                    disabled={deleteMutation.isPending}
+                                >
+                                    {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                </Button>
+                            )}
+                        </div>
+                        <div className="flex gap-2">
+                            <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+                            <Button type="submit" disabled={isSubmitting || mutation.isPending}>
+                                {(isSubmitting || mutation.isPending) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                                Guardar
+                            </Button>
+                        </div>
                     </div>
                 </form>
             </DialogContent>
@@ -131,6 +178,7 @@ export function AgendaPage() {
     const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
     const [showModal, setShowModal] = useState(false)
     const [clickedDate, setClickedDate] = useState<string>()
+    const [clickedMilestone, setClickedMilestone] = useState<Milestone | undefined>()
 
     const { data: milestones = [], isLoading } = useQuery({
         queryKey: ['agenda-milestones'],
@@ -195,7 +243,7 @@ export function AgendaPage() {
                     </h1>
                     <p className="text-muted-foreground text-sm mt-1">Calendário de datas, marcos e entregas</p>
                 </div>
-                <Button onClick={() => { setClickedDate(undefined); setShowModal(true) }}>
+                <Button onClick={() => { setClickedDate(undefined); setClickedMilestone(undefined); setShowModal(true) }}>
                     <Plus className="h-4 w-4 mr-2" /> Adicionar Marco
                 </Button>
             </div>
@@ -258,9 +306,14 @@ export function AgendaPage() {
                                                     {dayMillestones.slice(0, 2).map(m => (
                                                         <div
                                                             key={m.id}
-                                                            className="text-[9px] leading-tight px-1 rounded truncate"
+                                                            className="text-[9px] leading-tight px-1 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
                                                             style={{ background: m.completed ? '#e5e7eb' : undefined }}
                                                             title={m.title}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                setClickedMilestone(m)
+                                                                setShowModal(true)
+                                                            }}
                                                         >
                                                             <span className={TYPE_COLORS[m.type] ?? ''}>
                                                                 {m.completed ? '✓ ' : '• '}{m.title}
@@ -303,7 +356,13 @@ export function AgendaPage() {
                                                     ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                                                     : <Circle className="h-4 w-4 text-muted-foreground" />}
                                             </button>
-                                            <div className="flex-1 min-w-0">
+                                            <div
+                                                className="flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+                                                onClick={() => {
+                                                    setClickedMilestone(m)
+                                                    setShowModal(true)
+                                                }}
+                                            >
                                                 <p className={cn('text-xs font-medium truncate', m.completed && 'line-through text-muted-foreground')}>
                                                     {m.title}
                                                 </p>
@@ -329,10 +388,11 @@ export function AgendaPage() {
                 </div>
             </div>
 
-            <AddMilestoneModal
+            <MilestoneModal
                 open={showModal}
-                onClose={() => { setShowModal(false); setClickedDate(undefined) }}
+                onClose={() => { setShowModal(false); setClickedDate(undefined); setClickedMilestone(undefined) }}
                 defaultDate={clickedDate}
+                milestone={clickedMilestone}
             />
         </div>
     )
