@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
+import { generateInvoicePDF, type InvoiceData } from '@/lib/pdfInvoiceGenerator'
 
 // import the modal from the list page to reuse
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -172,6 +173,49 @@ export function ClienteDetailPage() {
     const totalContractValue = clientObras.reduce((s, o) => s + (o.contract_value ?? 0), 0)
     const activeObras = clientObras.filter(o => o.status === 'Em execução' || o.status === 'Em preparação')
 
+    const handleGenerateInvoice = () => {
+        const dummyCompany = {
+            name: 'ConstruAP S.A.',
+            nif: '500123456',
+            address: 'Rua Principal da Construção, nº 123',
+            postalCode: '1000-001',
+            city: 'Lisboa'
+        }
+
+        const invoiceData: InvoiceData = {
+            invoiceNumber: `FAT-${new Date().getFullYear()}/${String(Math.floor(Math.random() * 900) + 100)}`,
+            date: new Date(),
+            dueDate: new Date(new Date().setDate(new Date().getDate() + 30)), // +30 days
+            company: dummyCompany,
+            client: {
+                name: client.name,
+                nif: client.nif || undefined,
+                address: client.morada || undefined,
+                postalCode: client.codigo_postal || undefined,
+                city: client.cidade || undefined
+            },
+            items: clientObras.map(obra => ({
+                description: `Adjudicação: ${obra.name}`,
+                quantity: 1,
+                unitPrice: obra.contract_value || 0,
+                taxRate: 23 // Default 23% based on Portuguese Tax
+            })).filter(item => item.unitPrice > 0)
+        }
+
+        if (invoiceData.items.length === 0) {
+            toast.error('O cliente não tem obras com valor adjudicado para faturar.')
+            return
+        }
+
+        try {
+            generateInvoicePDF(invoiceData)
+            toast.success('Fatura PDF gerada com sucesso!')
+        } catch (error) {
+            toast.error('Erro ao gerar PDF da fatura.')
+            console.error(error)
+        }
+    }
+
     return (
         <div className="space-y-6 animate-fade-in">
             {/* Back + Actions */}
@@ -182,6 +226,9 @@ export function ClienteDetailPage() {
                     </Link>
                 </Button>
                 <div className="flex gap-2">
+                    <Button variant="secondary" size="sm" onClick={handleGenerateInvoice}>
+                        <Receipt className="h-4 w-4 mr-2" /> Fatura em PDF
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
                         <Pencil className="h-4 w-4 mr-2" /> Editar
                     </Button>
